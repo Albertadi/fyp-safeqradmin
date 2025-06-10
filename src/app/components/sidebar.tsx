@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { logout } from '@/app/components/actions'
 import {
   Home,
   Users,
@@ -73,7 +74,7 @@ export default function Sidebar() {
       <div className="absolute bottom-0 w-full mb-8">
         <div
           className={`px-4 py-3 flex items-center ${collapsed ? 'justify-center' : ''} rounded-md mx-2 cursor-pointer`}
-          onClick={() => router.push('/login')}
+          onClick={() => logout()}
         >
           <LogOut className="w-5 h-5 mr-2" />
           {!collapsed && <span>Logout</span>}
