@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Search, UserPlus, Filter, Trash2, Ban, Check, AlertCircle, Clock, Edit2, Menu, Home, Users, Bell, Shield, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchUsers, toggleUserStatus, deleteUser, User } from "@/app/lib/supabase";
+import { suspendUser, liftSuspension } from "./actions";
+import SuspensionModal from "@/app/components/suspensionModal"
+import LiftSuspensionModal from "@/app/components/liftSuspensionModal"
 
 export default function UserManagementDashboard() {
   const router = useRouter();
@@ -12,6 +15,10 @@ export default function UserManagementDashboard() {
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+
+  const [isSuspModalOpen, setSuspModalOpen] = useState(false)
+  const [suspendTargetId, setSuspendTargetId] = useState<string|null>(null)
+  const [suspendDays, setSuspendDays] = useState(1)
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -135,6 +142,34 @@ export default function UserManagementDashboard() {
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
+
+  // when "Suspend" clicked:
+  const openSuspendModal = (userId: string) => {
+    setSuspendTargetId(userId)
+    setSuspendDays(1)
+    setSuspModalOpen(true)
+  }
+
+  const confirmSuspend = async () => {
+    if (!suspendTargetId) return
+    try {
+      await suspendUser(suspendTargetId, suspendDays)
+
+      setUsers(u =>
+        u.map(x =>
+          x.user_id === suspendTargetId
+            ? { ...x, account_status: "suspended" }
+            : x
+        )
+      )
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to suspend")
+    } finally {
+      setSuspModalOpen(false)
+      setSuspendTargetId(null)
+    }
+  }
+
 
     return (
     <div className="flex h-screen bg-gray-50">
@@ -281,7 +316,7 @@ export default function UserManagementDashboard() {
                                   <button 
                                     className="p-1 rounded-md hover:bg-red-100 text-red-600" 
                                     title="Suspend User"
-                                    onClick={() => handleToggleUserStatus(user.user_id, user.account_status)}
+                                    onClick={() => openSuspendModal(user.user_id)}
                                   >
                                     <Ban className="w-5 h-5" />
                                   </button>
@@ -328,6 +363,19 @@ export default function UserManagementDashboard() {
                   </div>
                 </div>
               </div>
+
+              {/* Suspension Modal */}
+              <SuspensionModal
+                isOpen={isSuspModalOpen}
+                username={
+                  users.find(u => u.user_id === suspendTargetId)?.username || ""
+                }
+                days={suspendDays}
+                onDaysChange={setSuspendDays}
+                onCancel={() => setSuspModalOpen(false)}
+                onConfirm={confirmSuspend}
+              />
+
             </div>
           </div>
         </div>
