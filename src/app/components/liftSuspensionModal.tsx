@@ -7,7 +7,8 @@ interface LiftSuspensionModalProps {
   username: string
   daysLeft: number
   onCancel: () => void
-  onConfirm: () => void
+  onConfirm: (userId: string) => void
+  userId: string
 }
 
 export default function LiftSuspensionModal({
@@ -16,6 +17,7 @@ export default function LiftSuspensionModal({
   daysLeft,
   onCancel,
   onConfirm,
+  userId,
 }: LiftSuspensionModalProps) {
   if (!isOpen) return null
 
@@ -51,7 +53,7 @@ export default function LiftSuspensionModal({
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(userId)}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Lift Suspension

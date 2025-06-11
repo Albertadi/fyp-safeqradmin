@@ -28,6 +28,7 @@ export async function suspendUser(userId: string, days: number) {
 }
 
 export async function liftSuspension(userId: string) {
+
   const supabase = await createClient()
 
   const { error: deleteError } = await supabase
@@ -47,4 +48,18 @@ export async function liftSuspension(userId: string) {
   revalidatePath('/private/management')
 
   return true
+}
+
+export async function fetchSuspensionByUser(userId: string) {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('suspensions')
+    .select('user_id, start_date, end_date')
+    .eq('user_id', userId)
+    .single()
+
+  if (error) throw error
+
+  return data
 }

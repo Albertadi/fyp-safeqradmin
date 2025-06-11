@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, UserPlus, Filter, Trash2, Ban, Check, AlertCircle, Clock, Edit2, Menu, Home, Users, Bell, Shield, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchUsers, toggleUserStatus, deleteUser, User } from "@/app/lib/supabase";
-import { suspendUser, liftSuspension } from "./actions";
+import { suspendUser, liftSuspension, fetchSuspensionByUser } from "./actions";
 import SuspensionModal from "@/app/components/suspensionModal"
 import LiftSuspensionModal from "@/app/components/liftSuspensionModal"
 
@@ -19,6 +19,11 @@ export default function UserManagementDashboard() {
   const [isSuspModalOpen, setSuspModalOpen] = useState(false)
   const [suspendTargetId, setSuspendTargetId] = useState<string|null>(null)
   const [suspendDays, setSuspendDays] = useState(1)
+
+  const [isLiftModalOpen, setLiftModalOpen] = useState(false)
+  const [liftTargetId, setLiftTargetId] = useState<string | null>(null)
+  const [liftDaysLeft, setLiftDaysLeft] = useState(0)
+
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -170,6 +175,30 @@ export default function UserManagementDashboard() {
     }
   }
 
+
+  const openLiftModal = async (userId: string) => {
+    setLiftTargetId(userId)
+
+    try {
+      // fetch the suspension record from your suspensions table
+      const suspension = await fetchSuspensionByUser(userId)
+
+      // calculate days left
+      if (suspension?.end_date) {
+        const end    = new Date(suspension.end_date)
+        const now    = new Date()
+        const diff   = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        setLiftDaysLeft(Math.max(0, diff))
+      } else {
+        setLiftDaysLeft(0)
+      }
+    } catch (err) {
+      console.error('Failed to load suspension:', err)
+      setLiftDaysLeft(0)
+    }
+
+    setLiftModalOpen(true)
+  }
 
     return (
     <div className="flex h-screen bg-gray-50">
@@ -324,7 +353,7 @@ export default function UserManagementDashboard() {
                                   <button 
                                     className="p-1 rounded-md hover:bg-green-100 text-green-600" 
                                     title="Activate User"
-                                    onClick={() => handleToggleUserStatus(user.user_id, user.account_status)}
+                                    onClick={() => openLiftModal(user.user_id)}
                                   >
                                     <Check className="w-5 h-5" />
                                   </button>
@@ -376,6 +405,31 @@ export default function UserManagementDashboard() {
                 onConfirm={confirmSuspend}
               />
 
+              <LiftSuspensionModal
+                isOpen={isLiftModalOpen}
+                userId={liftTargetId!}                     
+                username={users.find(u => u.user_id === liftTargetId)?.username || ''}
+                daysLeft={liftDaysLeft}
+                onCancel={() => setLiftModalOpen(false)}
+                onConfirm={async (id) => {
+                  try {
+                    await liftSuspension(id)
+
+                    setUsers(prev =>
+                      prev.map(u =>
+                        u.user_id === id
+                          ? { ...u, account_status: 'active' }
+                          : u
+                      )
+                    )
+                  } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Failed to lift suspension')
+                  } finally {
+                    setLiftModalOpen(false)
+                    setLiftTargetId(null)
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
