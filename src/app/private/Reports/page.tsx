@@ -40,7 +40,6 @@ export default function ReportsPage() {
                 <th className="px-6 py-4 font-medium text-gray-600">Role</th>
                 <th className="px-6 py-4 font-medium text-gray-600">Status</th>
                 <th className="px-6 py-4 font-medium text-gray-600">Created</th>
-                <th className="px-6 py-4 font-medium text-gray-600">Last Updated</th>
                 <th className="px-6 py-4 font-medium text-gray-600">Actions</th>
               </tr>
             </thead>
