@@ -1,65 +1,51 @@
+// src/app/private/actions.ts
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient }   from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export async function suspendUser(userId: string, days: number) {
   const supabase = await createClient()
 
-  const startDate = new Date().toISOString()
-  const endDate   = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
-
-  const { error: insertError } = await supabase
-    .from('suspensions')
-    .insert({ user_id: userId, start_date: startDate, end_date: endDate })
-
-  if (insertError) throw insertError
-
-  const { error: updateError } = await supabase
-    .from('users')
-    .update({ account_status: 'suspended' })
-    .eq('user_id', userId)
-
-  if (updateError) throw updateError
+  // NO generics needed here:
+  const { error } = await supabase.rpc(
+    'suspend_user',
+    { p_user_id: userId, p_days: days }
+  )
+  if (error) throw error
 
   revalidatePath('/private/management')
-
   return true
 }
 
 export async function liftSuspension(userId: string) {
-
   const supabase = await createClient()
 
-  const { error: deleteError } = await supabase
-    .from('suspensions')
-    .delete()
-    .eq('user_id', userId)
-
-  if (deleteError) throw deleteError
-
-  const { error: updateError } = await supabase
-    .from('users')
-    .update({ account_status: 'active' })
-    .eq('user_id', userId)
-
-  if (updateError) throw updateError
+  // NO generics needed here either:
+  const { error } = await supabase.rpc(
+    'lift_suspension',
+    { p_user_id: userId }
+  )
+  if (error) throw error
 
   revalidatePath('/private/management')
-
   return true
 }
 
 export async function fetchSuspensionByUser(userId: string) {
   const supabase = await createClient()
 
-  const { data, error } = await supabase
-    .from('suspensions')
-    .select('user_id, start_date, end_date')
-    .eq('user_id', userId)
-    .single()
-
+  // Again, no generics: let TS infer table‐row type
+  const { data, error } = await supabase.rpc(
+    'get_suspension',
+    { p_user_id: userId }
+  )
   if (error) throw error
 
-  return data
+  // get_suspension returns an array of rows
+  return (data as Array<{
+    user_id: string
+    start_date: string
+    end_date: string
+  }>)[0] || null
 }
