@@ -1,9 +1,10 @@
 // src/app/private/Reports/page.tsx
-import {ChevronRight,Search,Users,UserCheck,UserX} from 'lucide-react';
+import { Search } from 'lucide-react';
 import { getReports } from './actions';
-import Link from 'next/link';
+import StatusDropdown from './statusDropdown';
 
-export default function ReportsPage() {
+export default async function ReportsPage() {
+  const reports = await getReports();
 
   return (
     <div className="p-6 bg-gray-50 h-full overflow-auto">
@@ -14,7 +15,7 @@ export default function ReportsPage() {
           <p className="text-gray-600 mt-2">All reports in the SafeQR system</p>
         </div>
 
-        {/* Search & Filters */}
+        {/* Search */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div className="flex w-full md:max-w-md">
             <div className="relative w-full">
@@ -35,15 +36,32 @@ export default function ReportsPage() {
           <table className="min-w-full text-sm text-left text-gray-700">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-6 py-4 font-medium text-gray-600">ID</th>
-                <th className="px-6 py-4 font-medium text-gray-600">Username</th>
-                <th className="px-6 py-4 font-medium text-gray-600">Role</th>
+                <th className="px-6 py-4 font-medium text-gray-600">Report ID</th>
+                <th className="px-6 py-4 font-medium text-gray-600">Scan ID</th>
+                <th className="px-6 py-4 font-medium text-gray-600">User ID</th>
+                <th className="px-6 py-4 font-medium text-gray-600">Reason</th>
                 <th className="px-6 py-4 font-medium text-gray-600">Status</th>
                 <th className="px-6 py-4 font-medium text-gray-600">Created</th>
-                <th className="px-6 py-4 font-medium text-gray-600">Actions</th>
               </tr>
             </thead>
             <tbody>
+              {reports.map((report) => (
+                <tr key={report.report_id} className="border-b hover:bg-gray-50">
+                  <td className="px-6 py-4">{report.report_id}</td>
+                  <td className="px-6 py-4">{report.scan_id}</td>
+                  <td className="px-6 py-4">{report.user_id}</td>
+                  <td className="px-6 py-4">{report.reason}</td>
+                  <td className="px-6 py-4">
+                    <StatusDropdown
+                      reportId={report.report_id}
+                      initialStatus={report.status}
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    {new Date(report.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
