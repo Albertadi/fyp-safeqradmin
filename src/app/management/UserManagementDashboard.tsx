@@ -12,6 +12,8 @@ export default function UserManagementDashboard() {
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  // Add state for tracking operations
+  const [operationLoading, setOperationLoading] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -21,6 +23,7 @@ export default function UserManagementDashboard() {
         setUsers(userData);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch users");
+        console.error("Error loading users:", err);
       } finally {
         setLoading(false);
       }
@@ -95,11 +98,31 @@ export default function UserManagementDashboard() {
   };
 
   const handleEditUser = (userId: string) => {
-    router.push(`/private/users/edit/${userId}`);
+    console.log("Editing user:", userId);
+    try {
+      router.push(`/management/edituser/${userId}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      alert("Failed to navigate to edit page");
+    }
   };
 
   const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
+    if (operationLoading) return; // Prevent multiple operations
+    
+    const newStatus = currentStatus === "active" ? "suspended" : "active";
+    const confirmMessage = currentStatus === "active" 
+      ? "Are you sure you want to suspend this user?" 
+      : "Are you sure you want to activate this user?";
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
     try {
+      setOperationLoading(`status-${userId}`);
+      console.log(`Toggling user ${userId} from ${currentStatus} to ${newStatus}`);
+      
       await toggleUserStatus(userId, currentStatus);
       
       // Update local state to reflect the change
@@ -108,27 +131,55 @@ export default function UserManagementDashboard() {
           user.user_id === userId 
             ? { 
                 ...user, 
-                account_status: currentStatus === "active" ? "suspended" : "active",
+                account_status: newStatus,
                 updated_at: new Date().toISOString() 
               } 
             : user
         )
       );
+      
+      console.log(`Successfully toggled user ${userId} status to ${newStatus}`);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update user status");
+      console.error("Error toggling user status:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to update user status";
+      alert(errorMessage);
+    } finally {
+      setOperationLoading(null);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-      try {
-        await deleteUser(userId);
-        
-        // Update local state to remove the deleted user
-        setUsers(prevUsers => prevUsers.filter(user => user.user_id !== userId));
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to delete user");
-      }
+    if (operationLoading) return; // Prevent multiple operations
+    
+    const user = users.find(u => u.user_id === userId);
+    if (!user) {
+      alert("User not found");
+      return;
+    }
+    
+    const confirmMessage = `Are you sure you want to delete user "${user.username}"? This action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      setOperationLoading(`delete-${userId}`);
+      console.log(`Deleting user: ${userId}`);
+      
+      // Pass userId to deleteUser function
+      await deleteUser(userId);
+      
+      // Update local state to remove the deleted user
+      setUsers(prevUsers => prevUsers.filter(user => user.user_id !== userId));
+      
+      console.log(`Successfully deleted user ${userId}`);
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete user";
+      alert(errorMessage);
+    } finally {
+      setOperationLoading(null);
     }
   };
 
@@ -136,7 +187,7 @@ export default function UserManagementDashboard() {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
-    return (
+  return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className={`bg-blue-800 text-white transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
@@ -168,7 +219,7 @@ export default function UserManagementDashboard() {
             <Users className="w-5 h-5 mr-2" />
             {!sidebarCollapsed && <span>Dashboard</span>}
           </div>
-          <div className={`px-4 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : ''} bg-blue-900 rounded-md mx-2 cursor-pointerhover:bg-blue-700 rounded-md mx-2 cursor-pointer mt-2`}>
+          <div className={`px-4 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : ''} bg-blue-900 rounded-md mx-2 cursor-pointer hover:bg-blue-700 mt-2`}>
             <Home className="w-5 h-5 mr-2" />
             {!sidebarCollapsed && <span>User Management</span>}
           </div>
@@ -176,7 +227,7 @@ export default function UserManagementDashboard() {
         
         <div className="absolute bottom-0 w-full mb-8">
           <div 
-            className={`px-4 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : ''} rounded-md mx-2 cursor-pointer`} 
+            className={`px-4 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : ''} hover:bg-blue-700 rounded-md mx-2 cursor-pointer`} 
             onClick={() => router.push('/login')}
           >
             <LogOut className="w-5 h-5 mr-2" />
@@ -199,7 +250,7 @@ export default function UserManagementDashboard() {
                   </div>
                   <button 
                     className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                    onClick={() => router.push("/private/users/create")}
+                    onClick={() => router.push("/management/createuser")}
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add User
@@ -216,7 +267,7 @@ export default function UserManagementDashboard() {
                     </div>
                     <input
                       type="text"
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Search users by username..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -228,7 +279,7 @@ export default function UserManagementDashboard() {
                       <Filter className="h-5 w-5 text-gray-400" />
                     </div>
                     <select
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       value={filterRole}
                       onChange={(e) => setFilterRole(e.target.value)}
                     >
@@ -243,7 +294,7 @@ export default function UserManagementDashboard() {
                       <Filter className="h-5 w-5 text-gray-400" />
                     </div>
                     <select
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="w-full pl-10 px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                     >
@@ -263,7 +314,16 @@ export default function UserManagementDashboard() {
                   </div>
                 ) : error ? (
                   <div className="flex justify-center items-center p-8 text-red-500">
-                    {error}
+                    <div className="text-center">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-4" />
+                      <p>{error}</p>
+                      <button 
+                        onClick={() => window.location.reload()} 
+                        className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <table className="min-w-full divide-y divide-gray-200">
@@ -317,35 +377,51 @@ export default function UserManagementDashboard() {
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex justify-end space-x-2">
                                 <button 
-                                  className="p-1 rounded-md hover:bg-blue-100 text-blue-600" 
+                                  className="p-1 rounded-md hover:bg-blue-100 text-blue-600 disabled:opacity-50" 
                                   title="Edit User"
                                   onClick={() => handleEditUser(user.user_id)}
+                                  disabled={operationLoading !== null}
                                 >
                                   <Edit2 className="w-5 h-5" />
                                 </button>
                                 {user.account_status === "active" ? (
                                   <button 
-                                    className="p-1 rounded-md hover:bg-red-100 text-red-600" 
+                                    className="p-1 rounded-md hover:bg-red-100 text-red-600 disabled:opacity-50" 
                                     title="Suspend User"
                                     onClick={() => handleToggleUserStatus(user.user_id, user.account_status)}
+                                    disabled={operationLoading !== null}
                                   >
-                                    <Ban className="w-5 h-5" />
+                                    {operationLoading === `status-${user.user_id}` ? (
+                                      <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Ban className="w-5 h-5" />
+                                    )}
                                   </button>
                                 ) : (
                                   <button 
-                                    className="p-1 rounded-md hover:bg-green-100 text-green-600" 
+                                    className="p-1 rounded-md hover:bg-green-100 text-green-600 disabled:opacity-50" 
                                     title="Activate User"
                                     onClick={() => handleToggleUserStatus(user.user_id, user.account_status)}
+                                    disabled={operationLoading !== null}
                                   >
-                                    <Check className="w-5 h-5" />
+                                    {operationLoading === `status-${user.user_id}` ? (
+                                      <div className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                      <Check className="w-5 h-5" />
+                                    )}
                                   </button>
                                 )}
                                 <button 
-                                  className="p-1 rounded-md hover:bg-red-100 text-red-600" 
+                                  className="p-1 rounded-md hover:bg-red-100 text-red-600 disabled:opacity-50" 
                                   title="Delete User"
                                   onClick={() => handleDeleteUser(user.user_id)}
+                                  disabled={operationLoading !== null}
                                 >
-                                  <Trash2 className="w-5 h-5" />
+                                  {operationLoading === `delete-${user.user_id}` ? (
+                                    <div className="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-5 h-5" />
+                                  )}
                                 </button>
                               </div>
                             </td>
@@ -363,7 +439,7 @@ export default function UserManagementDashboard() {
                 )}
               </div>
 
-              {/* Pagination - Could be enhanced with server-side pagination */}
+              {/* Pagination */}
               <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
                 <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                   <div>
