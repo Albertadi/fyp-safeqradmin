@@ -7,13 +7,11 @@ import { fetchUserById, updateUserProfile, User } from "@/app/lib/supabase";
 
 interface UserFormData {
   username: string;
-  email: string;
   role: string;
 }
 
 interface FormErrors {
   username?: string;
-  email?: string;
   role?: string;
   general?: string;
 }
@@ -27,7 +25,6 @@ export default function EditUser({ userId }: EditUserProps) {
   const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UserFormData>({
     username: "",
-    email: "",
     role: ""
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -47,7 +44,6 @@ export default function EditUser({ userId }: EditUserProps) {
         setUser(userData);
         setFormData({
           username: userData.username,
-          email: userData.email || "",
           role: userData.role
         });
         
@@ -72,13 +68,6 @@ export default function EditUser({ userId }: EditUserProps) {
       newErrors.username = "Username is required";
     } else if (formData.username.length < 3) {
       newErrors.username = "Username must be at least 3 characters";
-    }
-    
-    // Validate email
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
     }
     
     // Validate role
@@ -111,7 +100,6 @@ export default function EditUser({ userId }: EditUserProps) {
       // Use the real Supabase function to update user
       await updateUserProfile(userId, {
         username: formData.username,
-        email: formData.email,
         role: formData.role
       });
       
@@ -151,7 +139,7 @@ export default function EditUser({ userId }: EditUserProps) {
           <div className="p-6 border-b">
             <div className="flex items-center">
               <button 
-                onClick={() => router.push("/private/users")}
+                onClick={() => router.push("/management")}
                 className="mr-4 p-2 rounded-full hover:bg-gray-100"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
@@ -189,27 +177,10 @@ export default function EditUser({ userId }: EditUserProps) {
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500"
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
-              )}
-            </div>
-            
-            <div className="mb-6">
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
             
@@ -222,7 +193,7 @@ export default function EditUser({ userId }: EditUserProps) {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500"
               >
                 <option value="regular">Regular</option>
                 <option value="admin">Admin</option>
@@ -237,7 +208,7 @@ export default function EditUser({ userId }: EditUserProps) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Account Status
               </label>
-              <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+              <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-900 placeholder-gray-500">
                 {user?.account_status === "active" ? (
                   <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                     Active
@@ -256,7 +227,7 @@ export default function EditUser({ userId }: EditUserProps) {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => router.push("/private/users")}
+                onClick={() => router.push("/management")}
                 className="mr-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 Cancel
