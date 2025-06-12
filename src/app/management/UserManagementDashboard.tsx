@@ -227,7 +227,7 @@ export default function UserManagementDashboard() {
         
         <div className="absolute bottom-0 w-full mb-8">
           <div 
-            className={`px-4 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : ''} hover:bg-blue-700 rounded-md mx-2 cursor-pointer`} 
+            className={`px-4 py-3 flex items-center ${sidebarCollapsed ? 'justify-center' : ''} rounded-md mx-2 cursor-pointer`} 
             onClick={() => router.push('/login')}
           >
             <LogOut className="w-5 h-5 mr-2" />
