@@ -14,7 +14,6 @@ export default function UserManagementDashboard() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [filterRole, setFilterRole] = useState<string>("");
   const [filterStatus, setFilterStatus] = useState<string>("");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
 
   const [isSuspModalOpen, setSuspModalOpen] = useState(false)
   const [suspendTargetId, setSuspendTargetId] = useState<string|null>(null)
@@ -23,6 +22,8 @@ export default function UserManagementDashboard() {
   const [isLiftModalOpen, setLiftModalOpen] = useState(false)
   const [liftTargetId, setLiftTargetId] = useState<string | null>(null)
   const [liftDaysLeft, setLiftDaysLeft] = useState(0)
+
+  const [operationLoading, setOperationLoading] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -107,45 +108,49 @@ export default function UserManagementDashboard() {
   };
 
   const handleEditUser = (userId: string) => {
-    router.push(`/private/users/edit/${userId}`);
-  };
-
-  const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
+    console.log("Editing user:", userId);
     try {
-      await toggleUserStatus(userId, currentStatus);
-      
-      // Update local state to reflect the change
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.user_id === userId 
-            ? { 
-                ...user, 
-                account_status: currentStatus === "active" ? "suspended" : "active",
-                updated_at: new Date().toISOString() 
-              } 
-            : user
-        )
-      );
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update user status");
+      router.push(`/management/edituser/${userId}`);
+    } catch (error) {
+      console.error("Navigation error:", error);
+      alert("Failed to navigate to edit page");
     }
   };
+
 
   const handleDeleteUser = async (userId: string) => {
-    if (window.confirm("Are you sure you want to delete this user? This action cannot be undone.")) {
-      try {
-        await deleteUser(userId);
-        
-        // Update local state to remove the deleted user
-        setUsers(prevUsers => prevUsers.filter(user => user.user_id !== userId));
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Failed to delete user");
-      }
+    if (operationLoading) return; // Prevent multiple operations
+    
+    const user = users.find(u => u.user_id === userId);
+    if (!user) {
+      alert("User not found");
+      return;
     }
-  };
+    
+    const confirmMessage = `Are you sure you want to delete user "${user.username}"? This action cannot be undone.`;
+    
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
+    try {
+      setOperationLoading(`delete-${userId}`);
+      console.log(`Deleting user: ${userId}`);
+      
+      // Pass userId to deleteUser function
+      await deleteUser(userId);
+      
+      // Update local state to remove the deleted user
+      setUsers(prevUsers => prevUsers.filter(user => user.user_id !== userId));
+      
+      console.log(`Successfully deleted user ${userId}`);
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete user";
+      alert(errorMessage);
+    } finally {
+      setOperationLoading(null);
+    }
   };
 
   // when "Suspend" clicked:
@@ -217,7 +222,7 @@ export default function UserManagementDashboard() {
                   </div>
                   <button 
                     className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                    onClick={() => router.push("/private/users/create")}
+                    onClick={() => router.push("/management/createuser")}
                   >
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add User
@@ -335,9 +340,10 @@ export default function UserManagementDashboard() {
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               <div className="flex justify-end space-x-2">
                                 <button 
-                                  className="p-1 rounded-md hover:bg-blue-100 text-blue-600" 
+                                  className="p-1 rounded-md hover:bg-blue-100 text-blue-600 disabled:opacity-50" 
                                   title="Edit User"
                                   onClick={() => handleEditUser(user.user_id)}
+                                  disabled={operationLoading !== null}
                                 >
                                   <Edit2 className="w-5 h-5" />
                                 </button>

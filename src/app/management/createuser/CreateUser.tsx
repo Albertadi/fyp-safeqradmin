@@ -1,6 +1,9 @@
+"use client";
+
 import React, { useState } from "react";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createClient } from '@/utils/supabase/client';
 
 // Define TypeScript interface for form data
 interface UserFormData {
@@ -8,7 +11,6 @@ interface UserFormData {
   email: string;
   password: string;
   confirmPassword: string;
-  role: string;
 }
 
 // Define TypeScript interface for form errors
@@ -17,7 +19,6 @@ interface FormErrors {
   email?: string;
   password?: string;
   confirmPassword?: string;
-  role?: string;
   general?: string;
 }
 
@@ -28,7 +29,6 @@ export default function CreateUser() {
     email: "",
     password: "",
     confirmPassword: "",
-    role: "regular"
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,11 +62,7 @@ export default function CreateUser() {
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
-    
-    // Validate role
-    if (!formData.role) {
-      newErrors.role = "Role is required";
-    }
+
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -82,50 +78,57 @@ export default function CreateUser() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
+
+    if (!validateForm()) return;
     setIsSubmitting(true);
-    
+
     try {
-      // Here you would connect to your Supabase backend
-      // Example:
-      // const supabase = createClient();
-      // const { data, error } = await supabase.auth.admin.createUser({
-      //   email: formData.email,
-      //   password: formData.password,
-      //   user_metadata: { username: formData.username }
-      // });
-      // if (error) throw error;
-      // 
-      // await supabase.from('users').insert({
-      //   user_id: data.user.id,
-      //   username: formData.username,
-      //   role: formData.role,
-      //   account_status: 'active'
-      // });
-      
-      // For now, we'll just simulate a successful creation
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const res = await fetch("/api/createuser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          // Note: Don't send confirmPassword to the API - it's only for client-side validation
+        }),
+      });
+
+      // Check if the response is ok before trying to parse JSON
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("API failed:", res.status, errorText);
+        throw new Error(`API failed with status ${res.status}: ${errorText}`);
+      }
+
+      // Parse JSON response
+      const result = await res.json();
+
+      if (!result.success) {
+        throw new Error(result.message || "Something went wrong");
+      }
+
       setSuccess(true);
-      
-      // After a brief delay, redirect back to the user management dashboard
+      setFormData({
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+
       setTimeout(() => {
-        router.push("/private/users");
+        router.push("/management");
       }, 2000);
-      
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating user:", error);
       setErrors({
-        general: "Failed to create user. Please try again."
+        general: error.message || "Failed to create user. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -135,7 +138,7 @@ export default function CreateUser() {
           <div className="p-6 border-b">
             <div className="flex items-center">
               <button 
-                onClick={() => router.push("/private/users")}
+                onClick={() => router.push("/management")}
                 className="mr-4 p-2 rounded-full hover:bg-gray-100"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-500" />
@@ -170,9 +173,9 @@ export default function CreateUser() {
                 id="username"
                 name="username"
                 value={formData.username}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter username"
+                onChange={handleChange}  
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Username"
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
@@ -189,7 +192,7 @@ export default function CreateUser() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="user@example.com"
               />
               {errors.email && (
@@ -207,8 +210,8 @@ export default function CreateUser() {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter password"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Password"
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
@@ -225,7 +228,7 @@ export default function CreateUser() {
                 name="confirmPassword"
                 value={formData.confirmPassword}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Confirm password"
               />
               {errors.confirmPassword && (
@@ -233,30 +236,10 @@ export default function CreateUser() {
               )}
             </div>
             
-            <div className="mb-6">
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                User Role
-              </label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                <option value="regular">Regular</option>
-                <option value="admin">Admin</option>
-                <option value="tester">Tester</option>
-              </select>
-              {errors.role && (
-                <p className="mt-1 text-sm text-red-600">{errors.role}</p>
-              )}
-            </div>
-            
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => router.push("/private/users")}
+                onClick={() => router.push("/management")}
                 className="mr-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
               >
                 Cancel
