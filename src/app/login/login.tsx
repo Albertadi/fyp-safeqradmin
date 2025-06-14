@@ -1,4 +1,4 @@
-import { login } from './actions'
+import { login } from '@/app/controllers/loginController'
 
 export default function NewLoginPage() {
   return (

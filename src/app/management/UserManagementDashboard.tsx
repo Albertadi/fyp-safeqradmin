@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, UserPlus, Filter, Trash2, Ban, Check, AlertCircle, Clock, Edit2, Menu, Home, Users, Bell, Shield, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchUsers, toggleUserStatus, deleteUser, User } from "@/app/lib/supabase";
-import { suspendUser, liftSuspension, fetchSuspensionByUser } from "./actions";
+import { suspendUser, liftSuspension, fetchSuspensionByUser } from "@/app/controllers/suspensionController";
 import SuspensionModal from "@/app/components/suspensionModal"
 import LiftSuspensionModal from "@/app/components/liftSuspensionModal"
 

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, Save, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchUserById, updateUserProfile, User } from "@/app/lib/supabase";
+import { fetchUserById, updateUserProfile, User } from "@/app/controllers/userController";
 
 interface UserFormData {
   username: string;
