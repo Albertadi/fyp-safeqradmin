@@ -1,6 +1,33 @@
+'use client'
+import { useState } from 'react'
 import { login } from '@/app/controllers/loginController'
 
 export default function NewLoginPage() {
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError(null)
+    
+    const formData = new FormData()
+    formData.append('email', email)
+    formData.append('password', password)
+    
+    const result = await login(formData)
+    
+    if (result?.error) {
+      setError(result.error)
+      // Only clear password on error, keep email
+      setPassword('')
+    }
+    
+    setIsLoading(false)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
       {/* Header */}
@@ -40,7 +67,19 @@ export default function NewLoginPage() {
               </p>
             </div>
 
-            <form className="space-y-6">
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
+              </div>
+            )}
+
+<form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                   Admin Email Address
@@ -50,8 +89,9 @@ export default function NewLoginPage() {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-600 focus:border-blue-500 transition-colors"
                   placeholder="Enter your admin email"
                 />
               </div>
@@ -65,18 +105,19 @@ export default function NewLoginPage() {
                   name="password"
                   type="password"
                   autoComplete="current-password"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-600 focus:border-blue-500 transition-colors"
                   placeholder="Enter your password"
                 />
               </div>
-
+              
               <button
-                formAction={login}
                 type="submit"
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                disabled={isLoading}
+                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Access Dashboard
+                {isLoading ? 'Signing in...' : 'Access Dashboard'}
               </button>
             </form>
 
@@ -86,7 +127,6 @@ export default function NewLoginPage() {
               </p>
             </div>
           </div>
-
         </div>
       </div>
     </div>
