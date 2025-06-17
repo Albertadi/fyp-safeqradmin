@@ -18,7 +18,6 @@ export async function getReports() {
   return data;
 }
 
-// ✅ Add this function
 export async function updateReportStatus(reportId: string, newStatus: string) {
   const supabase = await createClient();
 
