@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from '@/utils/supabase/client';
+import { createUser } from '@/app/controllers/userController'; 
 
 // Define TypeScript interface for form data
 interface UserFormData {
@@ -63,7 +63,6 @@ export default function CreateUser() {
       newErrors.confirmPassword = "Passwords do not match";
     }
 
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -74,38 +73,36 @@ export default function CreateUser() {
       ...formData,
       [name]: value
     });
+    
+    // Clear specific field error when user starts typing
+    if (errors[name as keyof FormErrors]) {
+      setErrors({
+        ...errors,
+        [name]: undefined
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!validateForm()) return;
+    
     setIsSubmitting(true);
+    setErrors({}); // Clear any previous errors
 
     try {
-      const res = await fetch("/api/createuser", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password,
-          // Note: Don't send confirmPassword to the API - it's only for client-side validation
-        }),
+      const result = await createUser({
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
       });
 
-      // Check if the response is ok before trying to parse JSON
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("API failed:", res.status, errorText);
-        throw new Error(`API failed with status ${res.status}: ${errorText}`);
-      }
-
-      // Parse JSON response
-      const result = await res.json();
-
       if (!result.success) {
-        throw new Error(result.message || "Something went wrong");
+        setErrors({
+          general: result.message,
+        });
+        return;
       }
 
       setSuccess(true);
@@ -116,19 +113,20 @@ export default function CreateUser() {
         confirmPassword: "",
       });
 
+      // Redirect after success
       setTimeout(() => {
         router.push("/management");
       }, 2000);
+
     } catch (error: any) {
-      console.error("Error creating user:", error);
+      console.error("Unexpected error creating user:", error);
       setErrors({
-        general: error.message || "Failed to create user. Please try again.",
+        general: "An unexpected error occurred. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -176,6 +174,7 @@ export default function CreateUser() {
                 onChange={handleChange}  
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Username"
+                disabled={isSubmitting}
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
@@ -194,6 +193,7 @@ export default function CreateUser() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="user@example.com"
+                disabled={isSubmitting}
               />
               {errors.email && (
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
@@ -212,6 +212,7 @@ export default function CreateUser() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Password"
+                disabled={isSubmitting}
               />
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
@@ -230,6 +231,7 @@ export default function CreateUser() {
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Confirm password"
+                disabled={isSubmitting}
               />
               {errors.confirmPassword && (
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
@@ -241,13 +243,14 @@ export default function CreateUser() {
                 type="button"
                 onClick={() => router.push("/management")}
                 className="mr-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
