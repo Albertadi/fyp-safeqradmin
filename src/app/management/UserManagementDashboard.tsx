@@ -239,7 +239,7 @@ export default function UserManagementDashboard() {
                     </div>
                     <input
                       type="text"
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       placeholder="Search users by username..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -251,7 +251,7 @@ export default function UserManagementDashboard() {
                       <Filter className="h-5 w-5 text-gray-400" />
                     </div>
                     <select
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       value={filterRole}
                       onChange={(e) => setFilterRole(e.target.value)}
                     >
@@ -266,7 +266,7 @@ export default function UserManagementDashboard() {
                       <Filter className="h-5 w-5 text-gray-400" />
                     </div>
                     <select
-                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                     >

@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, Save, Loader } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchUserById, updateUserProfile, User } from "@/app/controllers/userController";
+import { fetchUserById, updateUserProfile, User } from "@/app/lib/supabase";
 
 interface UserFormData {
   username: string;
+  email: string;
   role: string;
 }
 
 interface FormErrors {
   username?: string;
+  email?: string;
   role?: string;
   general?: string;
 }
@@ -25,6 +27,7 @@ export default function EditUser({ userId }: EditUserProps) {
   const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<UserFormData>({
     username: "",
+    email: "",
     role: ""
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -41,10 +44,12 @@ export default function EditUser({ userId }: EditUserProps) {
         
         setFormData({
           username: userData.username,
+          email: userData.email || "", // Handle case where email might be null
           role: userData.role
         });
         
         console.log('User data loaded:', userData);
+        console.log('Email retrieved:', userData.email); // Debug email specifically
         setIsLoading(false);
       } catch (error) {
         console.error("Error fetching user:", error);
@@ -65,6 +70,12 @@ export default function EditUser({ userId }: EditUserProps) {
       newErrors.username = "Username is required";
     } else if (formData.username.length < 3) {
       newErrors.username = "Username must be at least 3 characters";
+    }
+
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
     }
 
     if (!formData.role) {
@@ -95,6 +106,7 @@ export default function EditUser({ userId }: EditUserProps) {
     try {
       await updateUserProfile(userId, {
         username: formData.username,
+        email: formData.email,
         role: formData.role
       });
       
@@ -173,6 +185,24 @@ export default function EditUser({ userId }: EditUserProps) {
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500"
+                placeholder="user@example.com"
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
             
