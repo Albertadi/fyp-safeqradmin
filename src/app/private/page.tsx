@@ -1,5 +1,5 @@
 // src/app/private/page.tsx
-import { getDashboardStats, isBackendOnline } from './actions';
+import { getDashboardStats, isBackendOnline } from '@/app/controllers/dashboardStatisticsController';
 import {
   Activity,
   Users,
