@@ -1,10 +1,10 @@
-// app/controllers/userController.ts
+// lib/supabase.ts
 import { createClient } from '@/utils/supabase/client';
 
 export interface User {
   user_id: string;
   username: string;
-  email?: string;
+  email: string;
   role: string;
   
   account_status: string;
