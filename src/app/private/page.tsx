@@ -118,9 +118,18 @@ export default async function PrivatePage() {
                 </div>
                 <ChevronRight className="w-4 h-4 text-purple-600" />
               </Link>
+              <Link 
+                href="/private/Reports"
+                className="w-full flex items-center justify-between p-3 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <BarChart3 className="w-5 h-5 text-red-600" />
+                  <span className="font-medium text-red-900">View Reports</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-red-600" />
+              </Link>
             </div>
           </div>
-          
 
           {/* System Health */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
