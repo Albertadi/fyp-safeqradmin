@@ -10,7 +10,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Shield
+  Shield,
+  BarChart3
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -22,6 +23,7 @@ export default function Sidebar() {
   const menuItems = [
     { label: 'Dashboard', icon: Home, href: '/private' },
     { label: 'User Management', icon: Users, href: '/management' },
+    { label: 'Reports Management', icon: BarChart3, href: '/private/Reports' },
   ];
 
   return (
