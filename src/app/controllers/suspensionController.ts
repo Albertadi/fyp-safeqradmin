@@ -6,7 +6,6 @@ import { revalidatePath } from 'next/cache'
 export async function suspendUser(userId: string, days: number) {
   const supabase = await createClient()
 
-  // NO generics needed here:
   const { error } = await supabase.rpc(
     'suspend_user',
     { p_user_id: userId, p_days: days }
@@ -20,7 +19,6 @@ export async function suspendUser(userId: string, days: number) {
 export async function liftSuspension(userId: string) {
   const supabase = await createClient()
 
-  // NO generics needed here either:
   const { error } = await supabase.rpc(
     'lift_suspension',
     { p_user_id: userId }
@@ -34,7 +32,6 @@ export async function liftSuspension(userId: string) {
 export async function fetchSuspensionByUser(userId: string) {
   const supabase = await createClient()
 
-  // Again, no generics: let TS infer table‐row type
   const { data, error } = await supabase.rpc(
     'get_suspension',
     { p_user_id: userId }

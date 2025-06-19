@@ -165,7 +165,6 @@ export async function createUser(userData: CreateUserData): Promise<CreateUserRe
     const supabase = createClient();
 
     // Sign up the user with Supabase Auth
-    // Try without metadata first to isolate the issue
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
@@ -246,6 +245,7 @@ export async function createUser(userData: CreateUserData): Promise<CreateUserRe
         {
           user_id: data.user.id,           // FK → auth.users.id
           username: userData.username,                   // username
+          email: userData.email,
           role: 'end_user',           // default role
           account_status: 'active'    // default status
         }
