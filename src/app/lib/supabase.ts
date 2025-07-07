@@ -6,10 +6,17 @@ export interface User {
   username: string;
   email: string;
   role: string;
-  
   account_status: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Suspension {
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -187,4 +194,245 @@ export async function createNewUser(
   }
   
   return newUser as User;
+}
+
+/**
+ * Automatically lifts suspensions for users whose suspension period has expired
+ * Returns the number of users whose suspensions were lifted
+ */
+export async function autoLiftExpiredSuspensions(): Promise<number> {
+  const supabase = createClient();
+  
+  try {
+    // Get current timestamp
+    const now = new Date().toISOString();
+    
+    // Find all users who have suspensions that have expired
+    const { data: expiredSuspensions, error: fetchError } = await supabase
+      .from('suspensions')
+      .select('user_id, end_date')
+      .lt('end_date', now);  // end_date is less than current time
+    
+    if (fetchError) {
+      console.error('Error fetching expired suspensions:', fetchError);
+      throw new Error(`Failed to fetch expired suspensions: ${fetchError.message}`);
+    }
+    
+    if (!expiredSuspensions || expiredSuspensions.length === 0) {
+      console.log('No expired suspensions found');
+      return 0;
+    }
+    
+    // Get unique user IDs who have expired suspensions
+    const expiredUserIds = [...new Set(expiredSuspensions.map(s => s.user_id))];
+    
+    // Check which of these users are still suspended
+    const { data: suspendedUsers, error: suspendedError } = await supabase
+      .from('users')
+      .select('user_id')
+      .in('user_id', expiredUserIds)
+      .eq('account_status', 'suspended');
+    
+    if (suspendedError) {
+      console.error('Error fetching suspended users:', suspendedError);
+      throw new Error(`Failed to fetch suspended users: ${suspendedError.message}`);
+    }
+    
+    if (!suspendedUsers || suspendedUsers.length === 0) {
+      console.log('No suspended users with expired suspensions found');
+      return 0;
+    }
+    
+    const usersToUpdate = suspendedUsers.map(u => u.user_id);
+    
+    // Update users table - set suspended users back to active
+    const { error: updateUsersError } = await supabase
+      .from('users')
+      .update({ 
+        account_status: 'active',
+        updated_at: now
+      })
+      .in('user_id', usersToUpdate);
+    
+    if (updateUsersError) {
+      console.error('Error updating users status:', updateUsersError);
+      throw new Error(`Failed to update users status: ${updateUsersError.message}`);
+    }
+    
+    console.log(`Successfully lifted ${usersToUpdate.length} expired suspensions`);
+    return usersToUpdate.length;
+    
+  } catch (error) {
+    console.error('Error in autoLiftExpiredSuspensions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets all users with expired suspensions (for checking purposes)
+ */
+export async function getExpiredSuspensions(): Promise<{user_id: string, end_date: string}[]> {
+  const supabase = createClient();
+  
+  try {
+    const now = new Date().toISOString();
+    
+    // Get all suspensions that have expired
+    const { data: expiredSuspensions, error: fetchError } = await supabase
+      .from('suspensions')
+      .select('user_id, end_date')
+      .lt('end_date', now)  // end_date is less than current time
+      .order('end_date', { ascending: false });
+    
+    if (fetchError) {
+      console.error('Error fetching expired suspensions:', fetchError);
+      throw new Error(`Failed to fetch expired suspensions: ${fetchError.message}`);
+    }
+    
+    if (!expiredSuspensions || expiredSuspensions.length === 0) {
+      return [];
+    }
+    
+    // Get unique user IDs
+    const uniqueUserIds = [...new Set(expiredSuspensions.map(s => s.user_id))];
+    
+    // Check which of these users are still suspended
+    const { data: suspendedUsers, error: suspendedError } = await supabase
+      .from('users')
+      .select('user_id')
+      .in('user_id', uniqueUserIds)
+      .eq('account_status', 'suspended');
+    
+    if (suspendedError) {
+      console.error('Error fetching suspended users:', suspendedError);
+      throw new Error(`Failed to fetch suspended users: ${suspendedError.message}`);
+    }
+    
+    if (!suspendedUsers || suspendedUsers.length === 0) {
+      return [];
+    }
+    
+    const suspendedUserIds = new Set(suspendedUsers.map(u => u.user_id));
+    
+    // Return only expired suspensions for users who are still suspended
+    return expiredSuspensions
+      .filter(suspension => suspendedUserIds.has(suspension.user_id))
+      .map(item => ({
+        user_id: item.user_id,
+        end_date: item.end_date
+      }));
+    
+  } catch (error) {
+    console.error('Error in getExpiredSuspensions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets all currently active suspensions (not expired)
+ */
+export async function getActiveSuspensions(): Promise<Suspension[]> {
+  const supabase = createClient();
+  
+  try {
+    const now = new Date().toISOString();
+    
+    const { data, error } = await supabase
+      .from('suspensions')
+      .select('user_id, start_date, end_date')  
+      .gt('end_date', now)  // end_date is greater than current time
+      .order('end_date', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching active suspensions:', error);
+      throw new Error(`Failed to fetch active suspensions: ${error.message}`);
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching active suspensions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Checks if a user is currently suspended (has an active suspension)
+ */
+export async function isUserCurrentlySuspended(userId: string): Promise<boolean> {
+  const supabase = createClient();
+  
+  try {
+    const now = new Date().toISOString();
+    
+    const { data, error } = await supabase
+      .from('suspensions')
+      .select('end_date')  
+      .eq('user_id', userId)
+      .gt('end_date', now)  // end_date is greater than current time
+      .limit(1)
+      .single();
+    
+    if (error) {
+      // If no active suspension found, user is not suspended
+      return false;
+    }
+    
+    return data?.end_date !== null;
+  } catch (error) {
+    console.error('Error checking suspension status:', error);
+    return false;
+  }
+}
+
+/**
+ * Gets suspension details for a specific user
+ */
+export async function getSuspensionByUser(userId: string): Promise<Suspension | null> {
+  const supabase = createClient();
+  
+  try {
+    // Get the most recent suspension for the user
+    const { data: recentData, error: recentError } = await supabase
+      .from('suspensions')
+      .select('user_id, start_date, end_date')  
+      .eq('user_id', userId)
+      .order('end_date', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (recentError) {
+      console.error('Error fetching recent suspension:', recentError);
+      return null;
+    }
+    
+    return recentData;
+  } catch (error) {
+    console.error('Error fetching suspension:', error);
+    return null;
+  }
+}
+
+/**
+ * Gets all suspensions for a user (both active and inactive)
+ */
+export async function getUserSuspensionHistory(userId: string): Promise<Suspension[]> {
+  const supabase = createClient();
+  
+  try {
+    const { data, error } = await supabase
+      .from('suspensions')
+      .select('user_id, start_date, end_date, created_at, updated_at')  
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching user suspension history:', error);
+      throw new Error(`Failed to fetch suspension history: ${error.message}`);
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching user suspension history:', error);
+    throw error;
+  }
 }
