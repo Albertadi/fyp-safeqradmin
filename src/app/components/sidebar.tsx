@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  BarChart3
+  BarChart3,
+  Brain,
+  Link // New icon for Verified Links
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -24,6 +26,8 @@ export default function Sidebar() {
     { label: 'Dashboard', icon: Home, href: '/private' },
     { label: 'User Management', icon: Users, href: '/management' },
     { label: 'Reports Management', icon: BarChart3, href: '/private/Reports' },
+    { label: 'Model Management', icon: Brain, href: '/model' },
+    { label: 'Verified Links', icon: Link, href: '/links' }, 
   ];
 
   return (
