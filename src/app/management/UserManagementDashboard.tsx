@@ -527,7 +527,7 @@ export default function UserManagementDashboard() {
                       value={filterRole}
                       onChange={(e) => setFilterRole(e.target.value)}
                     >
-                      <option value="">All Roles</option>
+                      <option value="">Roles</option>
                       <option value="admin">Admin</option>
                       <option value="end_user">User</option>
                     </select>
@@ -542,7 +542,7 @@ export default function UserManagementDashboard() {
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                     >
-                      <option value="">All Statuses</option>
+                      <option value="">Status</option>
                       <option value="active">Active</option>
                       <option value="suspended">Suspended</option>
                     </select>
