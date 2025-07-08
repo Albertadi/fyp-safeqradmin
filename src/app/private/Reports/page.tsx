@@ -6,7 +6,6 @@ import { getReports } from './actions';
 import StatusDropdown from './statusDropdown';
 import ScanModal from '../Reports/ScanModal';
 import UserModal from '../Reports/UserModal';
-import { createVerifiedLink } from '../../controllers/verifiedLinksController';
 
 interface Report {
   report_id: string;
@@ -37,32 +36,20 @@ export default function ReportsPage() {
     fetchReports();
   }, []);
 
-  const handleScanClick = (scanId: string) => setSelectedScanId(scanId);
-  const handleUserClick = (userId: string) => setSelectedUserId(userId);
-  const closeScanModal = () => setSelectedScanId(null);
-  const closeUserModal = () => setSelectedUserId(null);
+  const handleScanClick = (scanId: string) => {
+    setSelectedScanId(scanId);
+  };
 
-  const handleVerifyClick = async () => {
-    const url = prompt('Enter the URL to verify:');
-    if (!url) return;
+  const handleUserClick = (userId: string) => {
+    setSelectedUserId(userId);
+  };
 
-    const statusInput = prompt('Enter status: Safe or Malicious');
-    const status = statusInput === 'Safe' || statusInput === 'Malicious' ? statusInput : null;
-    if (!status) {
-      alert('Invalid status');
-      return;
-    }
+  const closeScanModal = () => {
+    setSelectedScanId(null);
+  };
 
-    try {
-      await createVerifiedLink({
-        url,
-        security_status: status,
-        added_by: '80a9d353-421f-4589-aea9-37b907398450',
-      });
-      alert('Link verified and added!');
-    } catch (err: any) {
-      alert(err.message || 'Error verifying link');
-    }
+  const closeUserModal = () => {
+    setSelectedUserId(null);
   };
 
   if (isLoading) {
@@ -106,52 +93,61 @@ export default function ReportsPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-4">Report ID</th>
-                  <th className="px-6 py-4 w-56">Scan ID</th>
-                  <th className="px-6 py-4 w-56">User ID</th>
-                  <th className="px-6 py-4">Reason</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Action</th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Report ID
+                  </th>
+                  <th className="px-6 py-4 w-56 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Scan ID
+                  </th>
+                  <th className="px-6 py-4 w-56 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    User ID
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Reason
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {reports.map((report) => (
                   <tr key={report.report_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 align-middle">
                       {report.report_id}
                     </td>
-                    <td className="px-6 py-4 w-56">
-                      <button
-                        onClick={() => handleScanClick(report.scan_id)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
-                        title={report.scan_id}
-                      >
-                        {report.scan_id}
-                      </button>
+                    <td className="px-6 py-4 w-56 text-sm text-gray-900 align-middle">
+                      <div className="flex items-center h-full">
+                        <button
+                          onClick={() => handleScanClick(report.scan_id)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
+                          title={report.scan_id}
+                        >
+                          {report.scan_id}
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 w-56">
-                      <button
-                        onClick={() => handleUserClick(report.user_id)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
-                        title={report.user_id}
-                      >
-                        {report.user_id}
-                      </button>
+                    <td className="px-6 py-4 w-56 text-sm text-gray-900 align-middle">
+                      <div className="flex items-center h-full">
+                        <button
+                          onClick={() => handleUserClick(report.user_id)}
+                          className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
+                          title={report.user_id}
+                        >
+                          {report.user_id}
+                        </button>
+                      </div>
                     </td>
-                    <td className="px-6 py-4">{report.reason}</td>
-                    <td className="px-6 py-4">
+
+
+                    <td className="px-6 py-4 text-sm text-gray-900 align-middle">
+                      {report.reason}
+                    </td>
+                    <td className="px-6 py-4 align-middle">
                       <StatusDropdown
                         reportId={report.report_id}
                         initialStatus={report.status}
                       />
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={handleVerifyClick}
-                        className="text-sm text-green-600 hover:underline"
-                      >
-                        Verify
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -170,4 +166,4 @@ export default function ReportsPage() {
       </div>
     </div>
   );
-}
+} 
