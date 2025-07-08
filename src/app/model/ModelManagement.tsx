@@ -7,6 +7,7 @@ import {
   CheckCircle,
   AlertCircle,
   RefreshCw,
+  X,
 } from 'lucide-react';
 import {
   fetchMLModels,
@@ -20,6 +21,11 @@ export default function ModelManagement() {
   const [models, setModels] = useState<MLModel[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Modal states for delete confirmation
+  const [modelToDelete, setModelToDelete] = useState<MLModel | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     loadModels();
@@ -50,12 +56,24 @@ export default function ModelManagement() {
     }
   };
 
-  const handleDeleteModel = async (model_id: string) => {
+  // Open the delete confirmation modal
+  const openDeleteModal = (model: MLModel) => {
+    setModelToDelete(model);
+    setDeleteError(null);
+  };
+
+  // Confirm delete handler
+  const handleConfirmDelete = async () => {
+    if (!modelToDelete) return;
+    setIsDeleting(true);
+    setDeleteError(null);
     try {
-      await deleteMLModel(model_id);
+      await deleteMLModel(modelToDelete.model_id);
+      setModelToDelete(null);
       await loadModels();
     } catch (err) {
-      console.error('Delete failed:', err);
+      setDeleteError('Failed to delete the model. Please try again.');
+      setIsDeleting(false);
     }
   };
 
@@ -76,12 +94,13 @@ export default function ModelManagement() {
   return (
     <div className="p-6 w-full min-h-screen bg-white">
       <div className="max-w-6xl mx-auto">
-
         {/* Header + Buttons */}
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Model Management</h1>
-            <p className="text-gray-600 mt-1">Manage AI models for QR code detection and classification</p>
+            <p className="text-gray-600 mt-1">
+              Manage AI models for QR code detection and classification
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -112,11 +131,21 @@ export default function ModelManagement() {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Accuracy</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Train Time (s)</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Version
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Accuracy
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Train Time (s)
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -131,7 +160,9 @@ export default function ModelManagement() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleSetActiveModel(model.model_id)}
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors gap-1 ${getStatusColor(model.is_active ?? false)}`}
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors gap-1 ${getStatusColor(
+                            model.is_active ?? false
+                          )}`}
                           title={`Click to set status to ${model.is_active ? 'Idle' : 'Active'}`}
                         >
                           {model.is_active ? (
@@ -150,18 +181,12 @@ export default function ModelManagement() {
 
                       <td className="px-6 py-4">
                         <button
-                          onClick={() =>
-                            router.push(
-                              `/model/deletemodel?model_id=${model.model_id}&version=${model.version}&is_active=${model.is_active}`
-                            )
-                          }
+                          onClick={() => openDeleteModal(model)}
                           title="Delete"
                           className="text-red-600 hover:text-red-800"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
-
-
                       </td>
                     </tr>
                   ))}
@@ -171,6 +196,57 @@ export default function ModelManagement() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {modelToDelete && (
+        <div className="fixed inset-0 z-50 backdrop-blur-sm bg-opacity-30 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="flex justify-between items-center p-6">
+              <h2 className="text-lg font-semibold text-gray-900">Delete ML Model</h2>
+              <button
+                onClick={() => setModelToDelete(null)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 text-center space-y-4">
+              <p className="text-gray-800 text-base">
+                Are you sure you want to delete{' '}
+                <strong>Model Version v{modelToDelete.version}</strong>?
+              </p>
+
+              <p className="text-sm text-gray-700">
+                Status:{' '}
+                <span className={modelToDelete.is_active ? 'text-green-600' : 'text-yellow-600'}>
+                  {modelToDelete.is_active ? 'Active' : 'Idle'}
+                </span>
+              </p>
+
+              {deleteError && <p className="text-red-600">{deleteError}</p>}
+
+              <div className="flex justify-center gap-3 mt-6">
+                <button
+                  onClick={() => setModelToDelete(null)}
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 justify-center"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete Model'}
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
