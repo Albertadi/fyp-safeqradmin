@@ -6,6 +6,8 @@ import { getReports } from './actions';
 import StatusDropdown from './statusDropdown';
 import ScanModal from '../Reports/ScanModal';
 import UserModal from '../Reports/UserModal';
+import VerifyModal from '../Reports/VerifyModal';
+import { getScanById, addVerifiedLink } from '../../controllers/verifiedLinksController';
 
 interface Report {
   report_id: string;
@@ -19,6 +21,7 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [verifyTarget, setVerifyTarget] = useState<{ scanId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -52,17 +55,41 @@ export default function ReportsPage() {
     setSelectedUserId(null);
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-6 w-full min-h-screen bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-gray-500">Loading reports...</div>
-          </div>
-        </div>
-      </div>
-    );
+  const openVerifyModal = (scanId: string) => {
+    setVerifyTarget({ scanId });
+  };
+
+  const closeVerifyModal = () => {
+    setVerifyTarget(null);
+  };
+
+const confirmVerify = async (securityStatus: 'Safe' | 'Malicious') => {
+  if (!verifyTarget) return;
+  
+  try {
+    // First, get the URL from the scan
+    const scanData = await getScanById(verifyTarget.scanId);
+    
+    if (!scanData) {
+      throw new Error('Scan not found. The scan may have been deleted or the ID is incorrect.');
+    }
+    
+    // Then add the verified link
+    await addVerifiedLink(scanData.url, securityStatus);
+    
+    // Optionally refresh the reports data in the background
+    const reportsData = await getReports();
+    setReports(reportsData);
+    
+    // Don't close the modal here - let the VerifyModal handle it
+    
+  } catch (error) {
+    console.error('Error adding verified link:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    alert(`Failed to add verified link: ${errorMessage}`);
+    throw error; // Re-throw so VerifyModal can handle the error state
   }
+};
 
   return (
     <div className="p-6 w-full min-h-screen bg-white">
@@ -108,6 +135,9 @@ export default function ReportsPage() {
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
+                  <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Verify
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -117,29 +147,23 @@ export default function ReportsPage() {
                       {report.report_id}
                     </td>
                     <td className="px-6 py-4 w-56 text-sm text-gray-900 align-middle">
-                      <div className="flex items-center h-full">
-                        <button
-                          onClick={() => handleScanClick(report.scan_id)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
-                          title={report.scan_id}
-                        >
-                          {report.scan_id}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleScanClick(report.scan_id)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
+                        title={report.scan_id}
+                      >
+                        {report.scan_id}
+                      </button>
                     </td>
                     <td className="px-6 py-4 w-56 text-sm text-gray-900 align-middle">
-                      <div className="flex items-center h-full">
-                        <button
-                          onClick={() => handleUserClick(report.user_id)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
-                          title={report.user_id}
-                        >
-                          {report.user_id}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleUserClick(report.user_id)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline truncate w-full text-left"
+                        title={report.user_id}
+                      >
+                        {report.user_id}
+                      </button>
                     </td>
-
-
                     <td className="px-6 py-4 text-sm text-gray-900 align-middle">
                       {report.reason}
                     </td>
@@ -149,6 +173,14 @@ export default function ReportsPage() {
                         initialStatus={report.status}
                       />
                     </td>
+                    <td className="px-6 py-4 text-sm align-middle">
+                      <button
+                        onClick={() => openVerifyModal(report.scan_id)}
+                        className="text-green-600 hover:text-green-800 hover:underline"
+                      >
+                        Verify
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -157,13 +189,16 @@ export default function ReportsPage() {
         </div>
 
         {/* Modals */}
-        {selectedScanId && (
-          <ScanModal scanId={selectedScanId} onClose={closeScanModal} />
-        )}
-        {selectedUserId && (
-          <UserModal userId={selectedUserId} onClose={closeUserModal} />
+        {selectedScanId && <ScanModal scanId={selectedScanId} onClose={closeScanModal} />}
+        {selectedUserId && <UserModal userId={selectedUserId} onClose={closeUserModal} />}
+        {verifyTarget && (
+          <VerifyModal
+            scanId={verifyTarget.scanId}
+            onClose={closeVerifyModal}
+            onSubmit={confirmVerify}
+          />
         )}
       </div>
     </div>
   );
-} 
+}
