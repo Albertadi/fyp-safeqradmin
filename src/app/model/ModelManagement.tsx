@@ -3,14 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Upload,
-  Play,
   Trash2,
-  RefreshCw,
-  Star,
   CheckCircle,
   AlertCircle,
-  Activity,
-  Clock,
+  RefreshCw,
 } from 'lucide-react';
 import {
   fetchMLModels,
@@ -23,7 +19,6 @@ import { useRouter } from 'next/navigation';
 export default function ModelManagement() {
   const [models, setModels] = useState<MLModel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'trained' | 'untrained'>('trained');
   const router = useRouter();
 
   useEffect(() => {
@@ -39,17 +34,6 @@ export default function ModelManagement() {
       console.error('Error loading models:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDeployModel = async (model_id: string) => {
-    try {
-      await updateMLModel(model_id, {
-        accuracy: Math.random() * 10 + 90,
-      });
-      await loadModels();
-    } catch (err) {
-      console.error('Deployment failed:', err);
     }
   };
 
@@ -75,20 +59,12 @@ export default function ModelManagement() {
     }
   };
 
-  const handleTrainModel = async (model_id: string) => {
-    try {
-      await updateMLModel(model_id, {
-        accuracy: Math.random() * 10 + 90,
-        train_time_seconds: Math.floor(Math.random() * 100 + 30),
-      });
-      await loadModels();
-    } catch (err) {
-      console.error('Train failed:', err);
-    }
-  };
-
   const goToAddModelPage = () => {
     router.push('/model/addmodel');
+  };
+
+  const goToRetrainPage = () => {
+    router.push('/model/retrainmodel'); // ✅ Redirect to retrain model page
   };
 
   function getStatusColor(isActive: boolean) {
@@ -97,55 +73,32 @@ export default function ModelManagement() {
       : 'bg-gray-100 text-gray-700 hover:bg-gray-200';
   }
 
-  // Filter models based on training status
-  const filteredModels = models.filter((m) =>
-    activeTab === 'trained' ? !!m.train_time_seconds : !m.train_time_seconds
-  );
-
   return (
     <div className="p-6 w-full min-h-screen bg-white">
       <div className="max-w-6xl mx-auto">
 
-        {/* Header + Add Button */}
+        {/* Header + Buttons */}
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Model Management</h1>
             <p className="text-gray-600 mt-1">Manage AI models for QR code detection and classification</p>
           </div>
 
-          <button
-            onClick={goToAddModelPage}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors whitespace-nowrap"
-          >
-            <Upload className="w-4 h-4" />
-            Add New Model
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-4">
-          <div className="flex space-x-1 p-1 bg-gray-100 rounded-xl w-fit">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setActiveTab('trained')}
-              className={`relative flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-                activeTab === 'trained'
-                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              onClick={goToRetrainPage}
+              className="bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-orange-700 transition-colors whitespace-nowrap"
             >
-              <Activity className="w-4 h-4" />
-              <span>Trained Model</span>
+              <RefreshCw className="w-4 h-4" />
+              Retrain Model
             </button>
+
             <button
-              onClick={() => setActiveTab('untrained')}
-              className={`relative flex items-center gap-2 px-6 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-                activeTab === 'untrained'
-                  ? 'bg-white text-gray-900 shadow-sm border border-gray-200'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              onClick={goToAddModelPage}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors whitespace-nowrap"
             >
-              <Clock className="w-4 h-4" />
-              <span>Untrained Model</span>
+              <Upload className="w-4 h-4" />
+              Add New Model
             </button>
           </div>
         </div>
@@ -167,7 +120,7 @@ export default function ModelManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredModels.map((model) => (
+                  {models.map((model) => (
                     <tr key={model.model_id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">v{model.version}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">
@@ -178,7 +131,7 @@ export default function ModelManagement() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleSetActiveModel(model.model_id)}
-                          className={`px-3 py-1 text-sm font-medium rounded-full transition-colors inline-flex items-center gap-1 ${getStatusColor(model.is_active ?? false)}`}
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors gap-1 ${getStatusColor(model.is_active ?? false)}`}
                           title={`Click to set status to ${model.is_active ? 'Idle' : 'Active'}`}
                         >
                           {model.is_active ? (
@@ -195,62 +148,20 @@ export default function ModelManagement() {
                         </button>
                       </td>
 
-                      <td className="px-6 py-4 flex gap-2">
-                        {model.train_time_seconds ? (
-                          // Trained models: Deploy, Set Active, Delete
-                          <>
-                            <button
-                              onClick={() => handleDeployModel(model.model_id)}
-                              title="Deploy"
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              <Play className="w-4 h-4" />
-                            </button>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/model/deletemodel?model_id=${model.model_id}&version=${model.version}&is_active=${model.is_active}`
+                            )
+                          }
+                          title="Delete"
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
 
-                            <button
-                              onClick={() => handleSetActiveModel(model.model_id)}
-                              title="Set Active"
-                              className="flex items-center justify-center w-6 h-6"
-                            >
-                              <Star className={`w-4 h-4 ${model.is_active ? 'text-yellow-500' : 'text-gray-400'}`} />
-                            </button>
 
-                            <button
-                              onClick={() => handleDeleteModel(model.model_id)}
-                              title="Delete"
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          // Untrained models: Train, Set Active, Delete
-                          <>
-                            <button
-                              onClick={() => handleTrainModel(model.model_id)}
-                              title="Train Model"
-                              className="text-green-600 hover:text-green-900"
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </button>
-
-                            <button
-                              onClick={() => handleSetActiveModel(model.model_id)}
-                              title="Set Active"
-                              className="flex items-center justify-center w-6 h-6"
-                            >
-                              <Star className={`w-4 h-4 ${model.is_active ? 'text-yellow-500' : 'text-gray-400'}`} />
-                            </button>
-
-                            <button
-                              onClick={() => handleDeleteModel(model.model_id)}
-                              title="Delete"
-                              className="text-red-600 hover:text-red-800"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
                       </td>
                     </tr>
                   ))}
