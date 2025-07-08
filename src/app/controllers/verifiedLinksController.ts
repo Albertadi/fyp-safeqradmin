@@ -9,21 +9,15 @@ export interface VerifiedLink {
   link_id: string;
   url: string;
   security_status: 'Safe' | 'Malicious';
-  added_by: string;
-  created_at: string;
+  added_by: '80a9d353-421f-4589-aea9-37b907398450';
+
 }
 
 export interface CreateVerifiedLinkData {
   url: string;
   security_status: 'Safe' | 'Malicious';
-  added_by: string;
-  description?: string;
-}
+  added_by: '80a9d353-421f-4589-aea9-37b907398450';
 
-export interface UpdateVerifiedLinkData {
-  url?: string;
-  security_status?: 'Safe' | 'Malicious';
-  description?: string;
 }
 
 const TABLE_NAME = 'verified_links';
@@ -279,7 +273,7 @@ export async function searchVerifiedLinks(searchTerm: string): Promise<VerifiedL
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .or(`url.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      .or(`url.ilike.%${searchTerm}%`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -328,4 +322,93 @@ function isValidUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+/**
+ * Get URL from qr_scans table using scan_id
+ */
+export async function getScanById(scanId: string): Promise<{ url: string } | null> {
+  try {
+    const supabase = await createClient();
+    
+    // Add some debugging
+    console.log('Looking for scan with ID:', scanId);
+    
+    const { data, error } = await supabase
+      .from('qr_scans')
+      .select('decoded_content')
+      .eq('scan_id', scanId)
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      if (error.code === 'PGRST116') {
+        // Record not found
+        console.log('Scan not found in database');
+        return null;
+      }
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (!data) {
+      console.log('No data returned for scan');
+      return null;
+    }
+
+    console.log('Found scan data:', data);
+    
+    // Validate that decoded_content is a valid URL
+    if (!data.decoded_content || typeof data.decoded_content !== 'string') {
+      throw new Error('Invalid decoded content: not a valid URL');
+    }
+    
+    // Map decoded_content to url
+    return { url: data.decoded_content };
+  } catch (error) {
+    console.error('Error in getScanById:', error);
+    throw error;
+  }
+}
+
+/**
+ * Alternative: Get scan with more fields for debugging
+ */
+export async function getScanByIdDebug(scanId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get all fields to see what's available
+    const { data, error } = await supabase
+      .from('qr_scans')
+      .select('*')
+      .eq('scan_id', scanId);
+
+    console.log('Debug - All scans with this ID:', data);
+    console.log('Debug - Error:', error);
+    
+    return { data, error };
+  } catch (error) {
+    console.error('Debug error:', error);
+    return { data: null, error };
+  }
+}
+export async function addVerifiedLink(url: string, securityStatus: string) {
+  const supabase = await createClient(); 
+
+  const { data, error } = await supabase
+    .from('verified_links')
+    .upsert({
+      url: url,
+      security_status: securityStatus,
+      added_by: '80a9d353-421f-4589-aea9-37b907398450',
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding verified link:', error);
+    throw new Error('Failed to add verified link');
+  }
+
+  return data;
 }
