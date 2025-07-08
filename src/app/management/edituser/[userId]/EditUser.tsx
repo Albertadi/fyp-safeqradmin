@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { ArrowLeft, Save, Loader } from "lucide-react";
+import { ArrowLeft, Save, Loader, CheckCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { fetchUserById, updateUserProfile, User } from "@/app/controllers/userController";
 
@@ -34,6 +34,7 @@ export default function EditUser({ userId }: EditUserProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -62,6 +63,25 @@ export default function EditUser({ userId }: EditUserProps) {
 
     fetchUser();
   }, [userId]);
+
+  // Countdown timer for auto-redirect
+  useEffect(() => {
+    if (success) {
+      setCountdown(3);
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            router.push("/management");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [success, router]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -112,10 +132,6 @@ export default function EditUser({ userId }: EditUserProps) {
       
       setSuccess(true);
       
-      setTimeout(() => {
-        router.push("/management");
-      }, 2000);
-      
     } catch (error) {
       console.error("Error updating user:", error);
       setErrors({
@@ -124,6 +140,11 @@ export default function EditUser({ userId }: EditUserProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCancelRedirect = () => {
+    setSuccess(false);
+    setCountdown(0);
   };
 
   if (isLoading) {
@@ -160,8 +181,44 @@ export default function EditUser({ userId }: EditUserProps) {
 
           <form onSubmit={handleSubmit} className="p-6">
             {success && (
-              <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-md">
-                User updated successfully! Redirecting...
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-start">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-green-800">
+                      User updated successfully!
+                    </h3>
+                    <p className="mt-1 text-sm text-green-700">
+                      The changes to {user?.username}'s profile have been saved.
+                    </p>
+                    <p className="mt-2 text-sm text-green-600">
+                      Redirecting to management page in {countdown} seconds...
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelRedirect}
+                    className="ml-3 text-green-600 hover:text-green-800"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-3 flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/management")}
+                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Go to Management
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelRedirect}
+                    className="px-3 py-1 text-xs bg-white text-green-600 border border-green-600 rounded hover:bg-green-50"
+                  >
+                    Stay Here
+                  </button>
+                </div>
               </div>
             )}
             
@@ -181,7 +238,8 @@ export default function EditUser({ userId }: EditUserProps) {
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500"
+                disabled={success}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500 disabled:bg-gray-50 disabled:text-gray-500"
               />
               {errors.username && (
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
@@ -198,7 +256,8 @@ export default function EditUser({ userId }: EditUserProps) {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500"
+                disabled={success}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500 disabled:bg-gray-50 disabled:text-gray-500"
                 placeholder="user@example.com"
               />
               {errors.email && (
@@ -215,7 +274,8 @@ export default function EditUser({ userId }: EditUserProps) {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500"
+                disabled={success}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500 disabled:bg-gray-50 disabled:text-gray-500"
               >
                 <option value="">Select a role</option>
                 <option value="end_user">User</option>
@@ -254,19 +314,25 @@ export default function EditUser({ userId }: EditUserProps) {
               <button
                 type="button"
                 onClick={() => router.push("/management")}
-                className="mr-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                disabled={success}
+                className="mr-4 px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center disabled:opacity-50"
+                disabled={isSubmitting || success}
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>
                     <Loader className="w-4 h-4 mr-2 animate-spin" />
                     Saving...
+                  </>
+                ) : success ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Saved
                   </>
                 ) : (
                   <>
