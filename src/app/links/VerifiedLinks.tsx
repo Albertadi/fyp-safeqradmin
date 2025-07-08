@@ -9,7 +9,8 @@ import {
   ExternalLink,
   Plus,
   Search,
-  Loader2
+  Loader2,
+  Filter
 } from 'lucide-react';
 import {
   fetchVerifiedLinks,
@@ -173,7 +174,7 @@ export default function VerifiedLinksManagement() {
         </button>
       </div>
 
-      {/* Search */}
+      {/* Search and Filter */}
       <div className="mb-6 flex flex-wrap gap-4">
         <div className="flex-1 min-w-64">
           <div className="relative">
@@ -183,9 +184,22 @@ export default function VerifiedLinksManagement() {
               placeholder="Search links..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-600"
             />
           </div>
+        </div>
+        
+        <div className="relative">
+          <Filter className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value as 'all' | 'Safe' | 'Malicious')}
+            className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 bg-white min-w-32"
+          >
+            <option value="all">Status</option>
+            <option value="Safe">Safe</option>
+            <option value="Malicious">Malicious</option>
+          </select>
         </div>
       </div>
 
@@ -293,7 +307,7 @@ export default function VerifiedLinksManagement() {
                       <td className="px-6 py-4">
                         <button
                           onClick={() => handleToggleVerification(link.link_id)}
-                          className={`px-3 py-1 text-sm font-medium rounded-full transition-colors inline-flex items-center gap-1 ${getStatusColor(link.security_status)}`}
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors gap-1 ${getStatusColor(link.security_status)}`}
                           title={`Click to change status to ${link.security_status === SECURITY_STATUS.SAFE ? 'Malicious' : 'Safe'}`}
                         >
                           {link.security_status === SECURITY_STATUS.SAFE ? (
