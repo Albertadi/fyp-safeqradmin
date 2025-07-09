@@ -37,11 +37,12 @@ export default async function RootLayout({
   // if (error) console.error("Auth error in RootLayout:", error);
 
   return (
-    <html lang="en">
+    <html lang="en" className="bg-white">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}
       >
-        <div className="flex h-screen">
+
+        <div className="flex min-h-screen">
           {/* only show sidebar when there is a user */}
           {user && <Sidebar />}
 

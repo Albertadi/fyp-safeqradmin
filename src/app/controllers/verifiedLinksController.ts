@@ -9,21 +9,15 @@ export interface VerifiedLink {
   link_id: string;
   url: string;
   security_status: 'Safe' | 'Malicious';
-  added_by: string;
-  created_at: string;
+  added_by: '80a9d353-421f-4589-aea9-37b907398450';
+
 }
 
 export interface CreateVerifiedLinkData {
   url: string;
   security_status: 'Safe' | 'Malicious';
-  added_by: string;
-  description?: string;
-}
+  added_by: '80a9d353-421f-4589-aea9-37b907398450';
 
-export interface UpdateVerifiedLinkData {
-  url?: string;
-  security_status?: 'Safe' | 'Malicious';
-  description?: string;
 }
 
 const TABLE_NAME = 'verified_links';
@@ -50,29 +44,37 @@ export async function testConnection(): Promise<boolean> {
     return false;
   }
 }
-
 /**
- * Fetch all verified links
+ * Fetch all verified links by paginating in 1000-row batches
  */
 export async function fetchVerifiedLinks(): Promise<VerifiedLink[]> {
-  try {
-    const supabase = await createClient();
+  const supabase = await createClient();
+  const batchSize = 1000;
+  let start = 0;
+  let allLinks: VerifiedLink[] = [];
+
+  while (true) {
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(start, start + batchSize - 1);
 
     if (error) {
-      console.error('Error fetching verified links:', error);
+      console.error('Error fetching verified links batch:', error);
       throw new Error(`Failed to fetch verified links: ${error.message}`);
     }
 
-    return data || [];
-  } catch (error) {
-    console.error('Fetch verified links error:', error);
-    throw error;
+    const batch = data || [];
+    allLinks = allLinks.concat(batch);
+
+    if (batch.length < batchSize) break; // No more rows to fetch
+    start += batchSize;
   }
+
+  return allLinks;
 }
+
 
 /**
  * Get a single verified link by ID
@@ -175,20 +177,18 @@ export async function deleteVerifiedLink(linkId: string): Promise<void> {
   }
 }
 
-
 /**
- * Toggle security status of a verified link
+ * Toggle security status of a verified link and mark related reports as Closed
  */
 export async function toggleSecurityStatus(linkId: string, currentStatus: 'Safe' | 'Malicious'): Promise<VerifiedLink> {
   try {
     const newStatus = currentStatus === 'Safe' ? 'Malicious' : 'Safe';
-    
     const supabase = await createClient();
+
+    // 1. Update the verified link's status
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .update({
-        security_status: newStatus,
-      })
+      .update({ security_status: newStatus })
       .eq('link_id', linkId)
       .select()
       .single();
@@ -198,13 +198,27 @@ export async function toggleSecurityStatus(linkId: string, currentStatus: 'Safe'
       throw new Error(`Failed to toggle security status: ${error.message}`);
     }
 
+    // 2. Also update any reports that are tied to this link ID
+    const { error: reportUpdateError } = await supabase
+      .from('reports')
+      .update({ status: 'Closed' })
+      .eq('link_id', linkId);
+
+    if (reportUpdateError) {
+      console.error('Error updating related reports:', reportUpdateError);
+      throw new Error(`Failed to update related report(s): ${reportUpdateError.message}`);
+    }
+
+    // 3. Revalidate cache path
     revalidatePath('/links');
+
     return data;
   } catch (error) {
     console.error('Toggle security status error:', error);
     throw error;
   }
 }
+
 
 /**
  * Get verified link by URL
@@ -279,7 +293,7 @@ export async function searchVerifiedLinks(searchTerm: string): Promise<VerifiedL
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .or(`url.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      .or(`url.ilike.%${searchTerm}%`)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -326,6 +340,168 @@ function isValidUrl(url: string): boolean {
     new URL(url);
     return true;
   } catch {
+    return false;
+  }
+}
+/**
+ * Get URL from qr_scans table using scan_id
+ */
+export async function getScanById(scanId: string): Promise<{ url: string } | null> {
+  try {
+    const supabase = await createClient();
+    
+    // Add some debugging
+    console.log('Looking for scan with ID:', scanId);
+    
+    const { data, error } = await supabase
+      .from('qr_scans')
+      .select('decoded_content')
+      .eq('scan_id', scanId)
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      if (error.code === 'PGRST116') {
+        // Record not found
+        console.log('Scan not found in database');
+        return null;
+      }
+      throw new Error(`Database error: ${error.message}`);
+    }
+
+    if (!data) {
+      console.log('No data returned for scan');
+      return null;
+    }
+
+    console.log('Found scan data:', data);
+    
+    // Validate that decoded_content is a valid URL
+    if (!data.decoded_content || typeof data.decoded_content !== 'string') {
+      throw new Error('Invalid decoded content: not a valid URL');
+    }
+    
+    // Map decoded_content to url
+    return { url: data.decoded_content };
+  } catch (error) {
+    console.error('Error in getScanById:', error);
+    throw error;
+  }
+}
+
+/**
+ * Alternative: Get scan with more fields for debugging
+ */
+export async function getScanByIdDebug(scanId: string) {
+  try {
+    const supabase = await createClient();
+    
+    // Get all fields to see what's available
+    const { data, error } = await supabase
+      .from('qr_scans')
+      .select('*')
+      .eq('scan_id', scanId);
+
+    console.log('Debug - All scans with this ID:', data);
+    console.log('Debug - Error:', error);
+    
+    return { data, error };
+  } catch (error) {
+    console.error('Debug error:', error);
+    return { data: null, error };
+  }
+}
+export async function addVerifiedLink(url: string, securityStatus: string) {
+  const supabase = await createClient(); 
+
+  const { data, error } = await supabase
+    .from('verified_links')
+    .upsert({
+      url: url,
+      security_status: securityStatus,
+      added_by: '80a9d353-421f-4589-aea9-37b907398450',
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error adding verified link:', error);
+    throw new Error('Failed to add verified link');
+  }
+
+  return data;
+}
+
+/**
+ * Update report status by report ID
+ */
+export async function updateReportStatus(reportId: string, newStatus: string): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('reports')
+    .update({ status: newStatus })
+    .eq('report_id', reportId);
+
+  if (error) {
+    console.error('Error updating report status:', error);
+    throw new Error('Failed to update report status');
+  }
+}
+
+/**
+ * Mark report as Closed and update related verified link's security_status to Safe
+ */
+export async function verifyReportAndMarkSafe(reportId: string, linkId: string): Promise<void> {
+  const supabase = await createClient();
+
+  // 1. Update report status to Closed
+  const { error: reportError } = await supabase
+    .from('reports')
+    .update({ status: 'Closed' })
+    .eq('report_id', reportId);
+
+  if (reportError) {
+    console.error('Failed to update report status:', reportError);
+    throw new Error('Failed to close report');
+  }
+
+  // 2. Update the associated link to Safe
+  const { error: linkError } = await supabase
+    .from('verified_links')
+    .update({ security_status: 'Safe' })
+    .eq('link_id', linkId);
+
+  if (linkError) {
+    console.error('Failed to mark link as Safe:', linkError);
+    throw new Error('Failed to update link security status');
+  }
+
+  revalidatePath('/reports'); // optional
+  revalidatePath('/links');
+}
+
+/**
+ * Check if a given URL already exists in the verified_links table
+ */
+export async function checkUrlExists(url: string): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('verified_links')
+      .select('url')
+      .eq('url', url)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking URL existence:', error);
+      return false;
+    }
+
+    return !!data;
+  } catch (err) {
+    console.error('checkUrlExists error:', err);
     return false;
   }
 }
