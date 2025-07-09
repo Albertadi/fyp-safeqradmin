@@ -44,29 +44,37 @@ export async function testConnection(): Promise<boolean> {
     return false;
   }
 }
-
 /**
- * Fetch all verified links
+ * Fetch all verified links by paginating in 1000-row batches
  */
 export async function fetchVerifiedLinks(): Promise<VerifiedLink[]> {
-  try {
-    const supabase = await createClient();
+  const supabase = await createClient();
+  const batchSize = 1000;
+  let start = 0;
+  let allLinks: VerifiedLink[] = [];
+
+  while (true) {
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(start, start + batchSize - 1);
 
     if (error) {
-      console.error('Error fetching verified links:', error);
+      console.error('Error fetching verified links batch:', error);
       throw new Error(`Failed to fetch verified links: ${error.message}`);
     }
 
-    return data || [];
-  } catch (error) {
-    console.error('Fetch verified links error:', error);
-    throw error;
+    const batch = data || [];
+    allLinks = allLinks.concat(batch);
+
+    if (batch.length < batchSize) break; // No more rows to fetch
+    start += batchSize;
   }
+
+  return allLinks;
 }
+
 
 /**
  * Get a single verified link by ID
@@ -169,20 +177,18 @@ export async function deleteVerifiedLink(linkId: string): Promise<void> {
   }
 }
 
-
 /**
- * Toggle security status of a verified link
+ * Toggle security status of a verified link and mark related reports as Closed
  */
 export async function toggleSecurityStatus(linkId: string, currentStatus: 'Safe' | 'Malicious'): Promise<VerifiedLink> {
   try {
     const newStatus = currentStatus === 'Safe' ? 'Malicious' : 'Safe';
-    
     const supabase = await createClient();
+
+    // 1. Update the verified link's status
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .update({
-        security_status: newStatus,
-      })
+      .update({ security_status: newStatus })
       .eq('link_id', linkId)
       .select()
       .single();
@@ -192,13 +198,27 @@ export async function toggleSecurityStatus(linkId: string, currentStatus: 'Safe'
       throw new Error(`Failed to toggle security status: ${error.message}`);
     }
 
+    // 2. Also update any reports that are tied to this link ID
+    const { error: reportUpdateError } = await supabase
+      .from('reports')
+      .update({ status: 'Closed' })
+      .eq('link_id', linkId);
+
+    if (reportUpdateError) {
+      console.error('Error updating related reports:', reportUpdateError);
+      throw new Error(`Failed to update related report(s): ${reportUpdateError.message}`);
+    }
+
+    // 3. Revalidate cache path
     revalidatePath('/links');
+
     return data;
   } catch (error) {
     console.error('Toggle security status error:', error);
     throw error;
   }
 }
+
 
 /**
  * Get verified link by URL
@@ -411,4 +431,77 @@ export async function addVerifiedLink(url: string, securityStatus: string) {
   }
 
   return data;
+}
+
+/**
+ * Update report status by report ID
+ */
+export async function updateReportStatus(reportId: string, newStatus: string): Promise<void> {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('reports')
+    .update({ status: newStatus })
+    .eq('report_id', reportId);
+
+  if (error) {
+    console.error('Error updating report status:', error);
+    throw new Error('Failed to update report status');
+  }
+}
+
+/**
+ * Mark report as Closed and update related verified link's security_status to Safe
+ */
+export async function verifyReportAndMarkSafe(reportId: string, linkId: string): Promise<void> {
+  const supabase = await createClient();
+
+  // 1. Update report status to Closed
+  const { error: reportError } = await supabase
+    .from('reports')
+    .update({ status: 'Closed' })
+    .eq('report_id', reportId);
+
+  if (reportError) {
+    console.error('Failed to update report status:', reportError);
+    throw new Error('Failed to close report');
+  }
+
+  // 2. Update the associated link to Safe
+  const { error: linkError } = await supabase
+    .from('verified_links')
+    .update({ security_status: 'Safe' })
+    .eq('link_id', linkId);
+
+  if (linkError) {
+    console.error('Failed to mark link as Safe:', linkError);
+    throw new Error('Failed to update link security status');
+  }
+
+  revalidatePath('/reports'); // optional
+  revalidatePath('/links');
+}
+
+/**
+ * Check if a given URL already exists in the verified_links table
+ */
+export async function checkUrlExists(url: string): Promise<boolean> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('verified_links')
+      .select('url')
+      .eq('url', url)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error checking URL existence:', error);
+      return false;
+    }
+
+    return !!data;
+  } catch (err) {
+    console.error('checkUrlExists error:', err);
+    return false;
+  }
 }
