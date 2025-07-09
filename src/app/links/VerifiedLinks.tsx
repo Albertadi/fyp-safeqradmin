@@ -22,7 +22,6 @@ import {
 } from '../controllers/verifiedLinksController';
 import { useRouter } from 'next/navigation';
 
-// Security status enum mapping
 const SECURITY_STATUS = {
   SAFE: 'Safe' as const,
   MALICIOUS: 'Malicious' as const,
@@ -37,13 +36,12 @@ export default function VerifiedLinksManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Safe' | 'Malicious'>('all');
   const [connectionStatus, setConnectionStatus] = useState<boolean | null>(null);
+  const [totalLoaded, setTotalLoaded] = useState(0);
 
-  // Modal states
   const [linkToDelete, setLinkToDelete] = useState<VerifiedLink | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Test Supabase connection
   const testDatabaseConnection = async () => {
     try {
       const isConnected = await testConnection();
@@ -56,13 +54,11 @@ export default function VerifiedLinksManagement() {
     }
   };
 
-  // Fetch verified links
   const loadVerifiedLinks = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Test connection first
       const isConnected = await testDatabaseConnection();
       if (!isConnected) {
         setError('Unable to connect to database. Please check your Supabase configuration.');
@@ -71,7 +67,7 @@ export default function VerifiedLinksManagement() {
 
       const links = await fetchVerifiedLinks();
       setVerifiedLinks(links);
-      console.log('Fetched links:', links);
+      setTotalLoaded(links.length);
     } catch (error) {
       console.error('Error fetching links:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch links');
@@ -80,32 +76,52 @@ export default function VerifiedLinksManagement() {
     }
   };
 
+  const refreshCurrentData = async () => {
+    await loadVerifiedLinks();
+  };
+
   useEffect(() => {
-    loadVerifiedLinks();
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const isConnected = await testDatabaseConnection();
+        if (!isConnected) {
+          setError('Unable to connect to database.');
+          return;
+        }
+
+        const links = await fetchVerifiedLinks(); // not paginated
+        setVerifiedLinks(links);
+        setTotalLoaded(links.length);
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Failed to load links.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAll();
   }, []);
 
-  // Filter links based on search and status
   const filteredLinks = verifiedLinks.filter((link) => {
-    const matchesSearch = link.url.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm === '' || link.url.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || link.security_status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
-  // Toggle verification status
   const handleToggleVerification = async (linkId: string) => {
     const link = verifiedLinks.find((l) => l.link_id === linkId);
     if (!link) return;
 
     try {
-      await toggleSecurityStatus(linkId, link.security_status);
-      await loadVerifiedLinks();
+      const updatedLink = await toggleSecurityStatus(linkId, link.security_status);
+      setVerifiedLinks(prev => prev.map(l => l.link_id === linkId ? updatedLink : l));
     } catch (error) {
       console.error('Error toggling status:', error);
       alert('Failed to update status. Please try again.');
     }
   };
 
-  // Status color helper
   const getStatusColor = (status: string) => {
     switch (status) {
       case SECURITY_STATUS.SAFE:
@@ -117,60 +133,38 @@ export default function VerifiedLinksManagement() {
     }
   };
 
-  // Handle Delete button click (open modal)
   const openDeleteModal = (link: VerifiedLink) => {
     setLinkToDelete(link);
     setDeleteError(null);
   };
 
-  // Handle Confirm Delete
   const handleConfirmDelete = async () => {
     if (!linkToDelete) return;
     setIsDeleting(true);
     setDeleteError(null);
+
     try {
       await deleteVerifiedLink(linkToDelete.link_id);
+      setVerifiedLinks(prev => prev.filter(l => l.link_id !== linkToDelete.link_id));
+      setTotalLoaded(prev => prev - 1);
       setLinkToDelete(null);
-      await loadVerifiedLinks();
     } catch (error) {
       setDeleteError('Failed to delete the link. Please try again.');
+    } finally {
       setIsDeleting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="p-6 w-full min-h-screen bg-white">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-gray-600">Loading verified links...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 w-full min-h-screen bg-white">
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Connection Error</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <button
-              onClick={loadVerifiedLinks}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Retry Connection
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 w-full min-h-screen bg-white">
+      {loading && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+          <div className="flex items-center gap-3">
+            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
+            <span className="text-gray-700 text-lg font-medium">Loading verified links...</span>
+          </div>
+        </div>
+      )}
       <div className="max-w-6xl mx-auto">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -209,7 +203,7 @@ export default function VerifiedLinksManagement() {
               onChange={(e) => setFilterStatus(e.target.value as 'all' | 'Safe' | 'Malicious')}
               className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 bg-white min-w-32"
             >
-              <option value="all">Status</option>
+              <option value="all">All Status</option>
               <option value="Safe">Safe</option>
               <option value="Malicious">Malicious</option>
             </select>
@@ -243,8 +237,8 @@ export default function VerifiedLinksManagement() {
           <div className="bg-blue-50 p-4 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-600">Total Links</p>
-                <p className="text-2xl font-bold text-blue-800">{verifiedLinks.length}</p>
+                <p className="text-sm text-blue-600">Total Links Loaded</p>
+                <p className="text-2xl font-bold text-blue-800">{totalLoaded}</p>
               </div>
               <Link className="w-8 h-8 text-blue-600" />
             </div>
@@ -278,6 +272,15 @@ export default function VerifiedLinksManagement() {
                             <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                             <p className="text-lg font-medium text-gray-900 mb-2">No links found</p>
                             <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+                            <button
+                              onClick={() => {
+                                setSearchTerm('');
+                                setFilterStatus('all');
+                              }}
+                              className="mt-2 text-blue-600 hover:text-blue-700 text-sm"
+                            >
+                              Clear filters
+                            </button>
                           </div>
                         ) : (
                           <div className="text-center">
@@ -285,7 +288,7 @@ export default function VerifiedLinksManagement() {
                             <p className="text-lg font-medium text-gray-900 mb-2">No verified links yet</p>
                             <p className="text-gray-600 mb-4">Add your first link to get started</p>
                             <button
-                              onClick={() => router.push('/links/add')}
+                              onClick={() => router.push('/links/addlink')}
                               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                             >
                               Add New Link
@@ -295,8 +298,8 @@ export default function VerifiedLinksManagement() {
                       </td>
                     </tr>
                   ) : (
-                    filteredLinks.map((link) => (
-                      <tr key={link.link_id} className="hover:bg-gray-50 h-16">
+                    filteredLinks.map((link, index) => (
+                      <tr key={`${link.link_id}-${index}`} className="hover:bg-gray-50 h-16">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="text-sm font-medium text-gray-900 truncate pr-2" title={link.url}>
@@ -354,14 +357,15 @@ export default function VerifiedLinksManagement() {
               </table>
             </div>
           </div>
+          
         </div>
       </div>
 
       {/* Delete Confirmation Modal */}
       {linkToDelete && (
         <div className="fixed inset-0 z-50 backdrop-blur-sm bg-opacity-30 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center p-6">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex justify-between items-center p-6 border-b">
               <h2 className="text-lg font-semibold text-gray-900">Confirm Delete Link</h2>
               <button
                 onClick={() => setLinkToDelete(null)}
@@ -371,23 +375,35 @@ export default function VerifiedLinksManagement() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-6 text-center">
-              <p className="text-gray-700 mb-8">Are you sure you want to delete this link?</p>
-              {deleteError && <p className="text-red-600 mb-2">{deleteError}</p>}
-              <div className="flex justify-center gap-4">
+            <div className="p-6">
+              <p className="text-gray-700 mb-2">Are you sure you want to delete this link?</p>
+              <p className="text-sm text-gray-500 mb-6 break-all">{linkToDelete.url}</p>
+              {deleteError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+                  <p className="text-red-600 text-sm">{deleteError}</p>
+                </div>
+              )}
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setLinkToDelete(null)}
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmDelete}
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
                 </button>
               </div>
             </div>
