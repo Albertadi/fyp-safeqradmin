@@ -31,11 +31,8 @@ export default function Sidebar() {
   ];
 
   return (
-    <div
-      className={`bg-blue-800 text-white transition-all duration-300 ${
-        collapsed ? 'w-16' : 'w-64'
-      } relative h-screen`}
-    >
+    <div className={`h-screen bg-blue-800 text-white transition-all duration-300 sticky top-0 z-40 ${collapsed ? 'w-16' : 'w-64'}`}>
+
       <div className="h-[76px] p-4 border-b border-blue-700 flex items-center justify-between">
         <div
           className={`flex items-center space-x-3 overflow-hidden transition-all ease-in-out duration-300 ${
