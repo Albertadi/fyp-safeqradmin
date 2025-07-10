@@ -12,6 +12,8 @@ import {
   Loader2,
   Filter,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   fetchVerifiedLinks,
@@ -27,6 +29,8 @@ const SECURITY_STATUS = {
   MALICIOUS: 'Malicious' as const,
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function VerifiedLinksManagement() {
   const router = useRouter();
 
@@ -36,7 +40,10 @@ export default function VerifiedLinksManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'Safe' | 'Malicious'>('all');
   const [connectionStatus, setConnectionStatus] = useState<boolean | null>(null);
-  const [totalLoaded, setTotalLoaded] = useState(0);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [linkToDelete, setLinkToDelete] = useState<VerifiedLink | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -67,7 +74,6 @@ export default function VerifiedLinksManagement() {
 
       const links = await fetchVerifiedLinks();
       setVerifiedLinks(links);
-      setTotalLoaded(links.length);
     } catch (error) {
       console.error('Error fetching links:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch links');
@@ -90,9 +96,8 @@ export default function VerifiedLinksManagement() {
           return;
         }
 
-        const links = await fetchVerifiedLinks(); // not paginated
+        const links = await fetchVerifiedLinks();
         setVerifiedLinks(links);
-        setTotalLoaded(links.length);
       } catch (error) {
         setError(error instanceof Error ? error.message : 'Failed to load links.');
       } finally {
@@ -103,11 +108,34 @@ export default function VerifiedLinksManagement() {
     fetchAll();
   }, []);
 
+  // Filter links and calculate pagination
   const filteredLinks = verifiedLinks.filter((link) => {
     const matchesSearch = searchTerm === '' || link.url.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || link.security_status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  // Update pagination when filters change
+  useEffect(() => {
+    const newTotalPages = Math.ceil(filteredLinks.length / ITEMS_PER_PAGE);
+    setTotalPages(newTotalPages);
+    
+    // Reset to first page if current page is beyond the new total
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [filteredLinks.length, currentPage]);
+
+  // Get current page items
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentPageItems = filteredLinks.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
 
   const handleToggleVerification = async (linkId: string) => {
     const link = verifiedLinks.find((l) => l.link_id === linkId);
@@ -146,7 +174,6 @@ export default function VerifiedLinksManagement() {
     try {
       await deleteVerifiedLink(linkToDelete.link_id);
       setVerifiedLinks(prev => prev.filter(l => l.link_id !== linkToDelete.link_id));
-      setTotalLoaded(prev => prev - 1);
       setLinkToDelete(null);
     } catch (error) {
       setDeleteError('Failed to delete the link. Please try again.');
@@ -155,16 +182,140 @@ export default function VerifiedLinksManagement() {
     }
   };
 
-  return (
-    <div className="p-6 w-full min-h-screen bg-white">
-      {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-            <span className="text-gray-700 text-lg font-medium">Loading verified links...</span>
+  // Helper function to render loading skeleton for stats
+  const renderStatsLoading = () => (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="bg-gray-50 p-4 rounded-lg animate-pulse">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
+              <div className="h-8 bg-gray-200 rounded w-12"></div>
+            </div>
+            <div className="w-8 h-8 bg-gray-200 rounded"></div>
           </div>
         </div>
-      )}
+      ))}
+    </div>
+  );
+
+  // Pagination component
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-200">
+        <div className="flex-1 flex justify-between sm:hidden">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
+              <span className="font-medium">{Math.min(endIndex, filteredLinks.length)}</span> of{' '}
+              <span className="font-medium">{filteredLinks.length}</span> results
+            </p>
+          </div>
+          <div>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              
+              {startPage > 1 && (
+                <>
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    1
+                  </button>
+                  {startPage > 2 && (
+                    <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                      ...
+                    </span>
+                  )}
+                </>
+              )}
+
+              {pageNumbers.map((number) => (
+                <button
+                  key={number}
+                  onClick={() => handlePageChange(number)}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                    number === currentPage
+                      ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {number}
+                </button>
+              ))}
+
+              {endPage < totalPages && (
+                <>
+                  {endPage < totalPages - 1 && (
+                    <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                      ...
+                    </span>
+                  )}
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-6 w-full min-h-screen bg-white">
       <div className="max-w-6xl mx-auto">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -190,7 +341,10 @@ export default function VerifiedLinksManagement() {
                 type="text"
                 placeholder="Search links..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1); // Reset to first page when searching
+                }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-600"
               />
             </div>
@@ -200,7 +354,10 @@ export default function VerifiedLinksManagement() {
             <Filter className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as 'all' | 'Safe' | 'Malicious')}
+              onChange={(e) => {
+                setFilterStatus(e.target.value as 'all' | 'Safe' | 'Malicious');
+                setCurrentPage(1); // Reset to first page when filtering
+              }}
               className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-600 bg-white min-w-32"
             >
               <option value="all">All Status</option>
@@ -210,154 +367,200 @@ export default function VerifiedLinksManagement() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-600">Safe Links</p>
-                <p className="text-2xl font-bold text-green-800">
-                  {verifiedLinks.filter((link) => link.security_status === SECURITY_STATUS.SAFE).length}
-                </p>
+        {/* Stats Cards - Show loading animation when loading */}
+        {loading ? renderStatsLoading() : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-green-600">Safe Links</p>
+                  <p className="text-2xl font-bold text-green-800">
+                    {verifiedLinks.filter((link) => link.security_status === SECURITY_STATUS.SAFE).length}
+                  </p>
+                </div>
+                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-red-600">Malicious Links</p>
+                  <p className="text-2xl font-bold text-red-800">
+                    {verifiedLinks.filter((link) => link.security_status === SECURITY_STATUS.MALICIOUS).length}
+                  </p>
+                </div>
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-blue-600">Total Links</p>
+                  <p className="text-2xl font-bold text-blue-800">{verifiedLinks.length}</p>
+                </div>
+                <Link className="w-8 h-8 text-blue-600" />
+              </div>
             </div>
           </div>
-          <div className="bg-red-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-red-600">Malicious Links</p>
-                <p className="text-2xl font-bold text-red-800">
-                  {verifiedLinks.filter((link) => link.security_status === SECURITY_STATUS.MALICIOUS).length}
-                </p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-red-600" />
-            </div>
+        )}
+
+        {/* Search Results Info */}
+        {(searchTerm.trim() || filterStatus !== 'all') && !loading && (
+          <div className="mb-4 text-sm text-gray-600">
+            {filteredLinks.length === 0 ? (
+              <p>No links found matching your criteria</p>
+            ) : (
+              <p>
+                Found {filteredLinks.length} link{filteredLinks.length !== 1 ? 's' : ''} 
+                {searchTerm.trim() && ` matching "${searchTerm}"`}
+                {filterStatus !== 'all' && ` with status "${filterStatus}"`}
+              </p>
+            )}
           </div>
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600">Total Links Loaded</p>
-                <p className="text-2xl font-bold text-blue-800">{totalLoaded}</p>
-              </div>
-              <Link className="w-8 h-8 text-blue-600" />
-            </div>
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+            <p className="text-red-600">{error}</p>
           </div>
-        </div>
+        )}
 
         {/* Verified Links Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="overflow-x-auto">
-            <div className="min-h-96">
-              <table className="w-full table-fixed">
-                <thead className="bg-gray-50 sticky top-0">
+            <table className="w-full table-fixed">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="w-1/2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    URL
+                  </th>
+                  <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Security Status
+                  </th>
+                  <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {loading ? (
                   <tr>
-                    <th className="w-1/2 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      URL
-                    </th>
-                    <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Security Status
-                    </th>
-                    <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Loading verified links...
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredLinks.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-16 text-center text-gray-500">
-                        {searchTerm || filterStatus !== 'all' ? (
-                          <div className="text-center">
-                            <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            <p className="text-lg font-medium text-gray-900 mb-2">No links found</p>
-                            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-                            <button
-                              onClick={() => {
-                                setSearchTerm('');
-                                setFilterStatus('all');
-                              }}
-                              className="mt-2 text-blue-600 hover:text-blue-700 text-sm"
-                            >
-                              Clear filters
-                            </button>
+                ) : currentPageItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-16 text-center text-gray-500">
+                      {error ? (
+                        <div className="text-center">
+                          <AlertCircle className="w-12 h-12 text-red-300 mx-auto mb-4" />
+                          <p className="text-lg font-medium text-gray-900 mb-2">Failed to load links</p>
+                          <p className="text-gray-600 mb-4">Please try refreshing the page</p>
+                          <button
+                            onClick={() => loadVerifiedLinks()}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : searchTerm || filterStatus !== 'all' ? (
+                        <div className="text-center">
+                          <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-lg font-medium text-gray-900 mb-2">No links found</p>
+                          <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+                          <button
+                            onClick={() => {
+                              setSearchTerm('');
+                              setFilterStatus('all');
+                              setCurrentPage(1);
+                            }}
+                            className="mt-2 text-blue-600 hover:text-blue-700 text-sm"
+                          >
+                            Clear filters
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <Link className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <p className="text-lg font-medium text-gray-900 mb-2">No verified links yet</p>
+                          <p className="text-gray-600 mb-4">Add your first link to get started</p>
+                          <button
+                            onClick={() => router.push('/links/addlink')}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            Add New Link
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  currentPageItems.map((link, index) => (
+                    <tr key={`${link.link_id}-${index}`} className="hover:bg-gray-50 h-16">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium text-gray-900 truncate pr-2" title={link.url}>
+                            {link.url}
                           </div>
-                        ) : (
-                          <div className="text-center">
-                            <Link className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            <p className="text-lg font-medium text-gray-900 mb-2">No verified links yet</p>
-                            <p className="text-gray-600 mb-4">Add your first link to get started</p>
-                            <button
-                              onClick={() => router.push('/links/addlink')}
-                              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              Add New Link
-                            </button>
-                          </div>
-                        )}
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gray-400 hover:text-blue-600 flex-shrink-0"
+                            title="Open link in new tab"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleToggleVerification(link.link_id)}
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors gap-1 ${getStatusColor(
+                            link.security_status
+                          )}`}
+                          title={`Click to change status to ${
+                            link.security_status === SECURITY_STATUS.SAFE ? 'Malicious' : 'Safe'
+                          }`}
+                        >
+                          {link.security_status === SECURITY_STATUS.SAFE ? (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Safe
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-4 h-4" />
+                              Malicious
+                            </>
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => openDeleteModal(link)}
+                            className="text-red-600 hover:text-red-900 p-1 rounded transition-colors"
+                            title="Delete link"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  ) : (
-                    filteredLinks.map((link, index) => (
-                      <tr key={`${link.link_id}-${index}`} className="hover:bg-gray-50 h-16">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium text-gray-900 truncate pr-2" title={link.url}>
-                              {link.url}
-                            </div>
-                            <a
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-gray-400 hover:text-blue-600 flex-shrink-0"
-                              title="Open link in new tab"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => handleToggleVerification(link.link_id)}
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors gap-1 ${getStatusColor(
-                              link.security_status
-                            )}`}
-                            title={`Click to change status to ${
-                              link.security_status === SECURITY_STATUS.SAFE ? 'Malicious' : 'Safe'
-                            }`}
-                          >
-                            {link.security_status === SECURITY_STATUS.SAFE ? (
-                              <>
-                                <CheckCircle className="w-4 h-4" />
-                                Safe
-                              </>
-                            ) : (
-                              <>
-                                <AlertCircle className="w-4 h-4" />
-                                Malicious
-                              </>
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-medium">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => openDeleteModal(link)}
-                              className="text-red-600 hover:text-red-900 p-1 rounded transition-colors"
-                              title="Delete link"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
           
+          {/* Pagination */}
+          {renderPagination()}
         </div>
       </div>
 
