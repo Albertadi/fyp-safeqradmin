@@ -8,11 +8,11 @@ import { useRouter } from 'next/navigation';
 export default function AddMLModelPage() {
   const router = useRouter();
 
-  const [storagePath, setStoragePath] = useState('');
+  const [version, setVersion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Track models to find next version
+  // Track models to validate version uniqueness
   const [models, setModels] = useState<MLModel[]>([]);
 
   useEffect(() => {
@@ -21,28 +21,35 @@ export default function AddMLModelPage() {
         const fetchedModels = await fetchMLModels();
         setModels(fetchedModels);
       } catch (err) {
-        console.error('Failed to fetch models for versioning:', err);
+        console.error('Failed to fetch models for validation:', err);
       }
     }
     loadModels();
   }, []);
 
-  // Calculate next version string like '1.0', '2.0', ...
-  const getNextVersion = () => {
-    if (models.length === 0) return '1.0';
 
-    // Parse existing versions and get max major number
-    const maxMajor = models.reduce((max, m) => {
-      const major = parseInt(m.version.split('.')[0], 10);
-      return isNaN(major) ? max : Math.max(max, major);
-    }, 0);
 
-    return `${maxMajor + 1}.0`;
+  // Check if version already exists
+  const isVersionExists = (versionToCheck: string) => {
+    return models.some(m => m.version === versionToCheck);
   };
 
   const handleAddModel = async () => {
-    if (!storagePath.trim()) {
-      alert('Please enter the model storage URL');
+    if (!version.trim()) {
+      alert('Please enter the model version');
+      return;
+    }
+
+    // Validate version format (basic check for x.y format)
+    const versionRegex = /^\d+\.\d+$/;
+    if (!versionRegex.test(version.trim())) {
+      setError('Please enter a valid version format (e.g., 1.0, 2.1)');
+      return;
+    }
+
+    // Check if version already exists
+    if (isVersionExists(version.trim())) {
+      setError('This version already exists. Please use a different version number.');
       return;
     }
 
@@ -50,8 +57,8 @@ export default function AddMLModelPage() {
     setError(null);
 
     const newModel: Partial<MLModel> = {
-      version: getNextVersion(),
-      storage_path: storagePath.trim(),
+      version: version.trim(),
+      // Storage path will be handled automatically by the backend
       created_at: new Date().toISOString(),
       is_active: false,
       trained_by: 'c3b75bee-9829-45ea-b5a6-e6ab3dd66b33',
@@ -87,18 +94,19 @@ export default function AddMLModelPage() {
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="storagePath" className="block mb-1 font-medium">
-              Model Storage URL
+            <label htmlFor="version" className="block mb-1 font-medium">
+              Model Version
             </label>
             <input
-              type="url"
-              id="storagePath"
-              placeholder="https://your-storage-url/model.onnx"
-              value={storagePath}
-              onChange={(e) => setStoragePath(e.target.value)}
+              type="text"
+              id="version"
+              placeholder="e.g., 1.0"
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
+
           </div>
 
           <button
