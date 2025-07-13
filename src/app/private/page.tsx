@@ -10,6 +10,7 @@ import {
   QrCode
 } from 'lucide-react';
 import Link from 'next/link';
+import ServiceStatus from "@/app/components/ServiceStatus";
 
 
 export default async function PrivatePage() {
@@ -62,12 +63,7 @@ export default async function PrivatePage() {
             <h1 className="text-3xl font-bold text-gray-900">SafeQR Admin Dashboard</h1>
             <p className="text-gray-600 mt-2">Welcome back! Here's an overview of your SafeQR system.</p>
           </div>
-          <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-lg shadow-sm border">
-            <Activity className={`w-5 h-5 ${online ? 'text-green-500' : 'text-red-500'}`} />
-            <span className={`text-sm font-medium ${online ? 'text-gray-700' : 'text-red-600'}`}>
-              {online ? 'Service Online' : 'Service Offline'}
-            </span>
-          </div>
+          <ServiceStatus isOnline={online} />
         </div>
 
         {/* Stats Cards */}
