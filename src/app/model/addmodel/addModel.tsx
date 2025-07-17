@@ -2,17 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, X } from 'lucide-react';
-import { createMLModel, fetchMLModels, type MLModel } from '../../controllers/mlModelsController';
-import { useRouter } from 'next/navigation';
+import {
+  createMLModel,
+  fetchMLModels,
+  type MLModel,
+} from '../../controllers/mlModelsController';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function AddMLModelPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
+  const prefilledVersion = searchParams.get('version') ?? '';
   const [version, setVersion] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Track models to validate version uniqueness
   const [models, setModels] = useState<MLModel[]>([]);
 
   useEffect(() => {
@@ -27,11 +31,13 @@ export default function AddMLModelPage() {
     loadModels();
   }, []);
 
+  // Only set prefilled version on initial mount
+  useEffect(() => {
+    setVersion(prefilledVersion);
+  }, [prefilledVersion]);
 
-
-  // Check if version already exists
   const isVersionExists = (versionToCheck: string) => {
-    return models.some(m => m.version === versionToCheck);
+    return models.some((m) => m.version === versionToCheck);
   };
 
   const handleAddModel = async () => {
@@ -40,14 +46,12 @@ export default function AddMLModelPage() {
       return;
     }
 
-    // Validate version format (basic check for x.y format)
     const versionRegex = /^\d+\.\d+$/;
     if (!versionRegex.test(version.trim())) {
       setError('Please enter a valid version format (e.g., 1.0, 2.1)');
       return;
     }
 
-    // Check if version already exists
     if (isVersionExists(version.trim())) {
       setError('This version already exists. Please use a different version number.');
       return;
@@ -58,7 +62,6 @@ export default function AddMLModelPage() {
 
     const newModel: Partial<MLModel> = {
       version: version.trim(),
-      // Storage path will be handled automatically by the backend
       created_at: new Date().toISOString(),
       is_active: false,
       trained_by: 'c3b75bee-9829-45ea-b5a6-e6ab3dd66b33',
@@ -106,7 +109,6 @@ export default function AddMLModelPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
-
           </div>
 
           <button
