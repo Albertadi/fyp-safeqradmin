@@ -198,22 +198,25 @@ export default function UserManagementDashboard() {
       setActiveSuspensionsCount(activeSuspensions.length);
       setExpiredSuspensionsCount(expiredSuspensions.length);
       
-      // If there are expired suspensions, optionally lift them
+      // Automatically lift expired suspensions without asking for confirmation
       if (expiredSuspensions.length > 0) {
+        console.log(`Found ${expiredSuspensions.length} expired suspension${expiredSuspensions.length !== 1 ? 's' : ''}, lifting automatically...`);
+        
+        const liftedCount = await autoLiftExpiredSuspensions();
+        
+        // Refresh the users list to reflect the changes
+        const updatedUsers = await fetchUsers();
+        setUsers(updatedUsers);
+        
+        // Update the counts after lifting
+        const newActiveSuspensions = await getActiveSuspensions();
+        setActiveSuspensionsCount(newActiveSuspensions.length);
+        setExpiredSuspensionsCount(0); // Should be 0 after lifting
+        
         if (!isAutomatic) {
-          const shouldLift = window.confirm(
-            `Found ${expiredSuspensions.length} expired suspension${expiredSuspensions.length !== 1 ? 's' : ''}. Would you like to lift them?`
-          );
-          
-          if (shouldLift) {
-            const liftedCount = await autoLiftExpiredSuspensions();
-            
-            // Refresh the users list
-            const updatedUsers = await fetchUsers();
-            setUsers(updatedUsers);
-            
-            alert(`Successfully lifted ${liftedCount} expired suspension${liftedCount !== 1 ? 's' : ''}`);
-          }
+          alert(`Automatically lifted ${liftedCount} expired suspension${liftedCount !== 1 ? 's' : ''}`);
+        } else {
+          console.log(`Successfully lifted ${liftedCount} expired suspension${liftedCount !== 1 ? 's' : ''} automatically`);
         }
       } else if (!isAutomatic) {
         alert("No expired suspensions found");
