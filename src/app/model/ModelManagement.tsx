@@ -153,7 +153,7 @@ export default function ModelManagement() {
               className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors whitespace-nowrap"
             >
               <Upload className="w-4 h-4" />
-              Add New Model
+              Train New Model
             </button>
           </div>
         </div>
