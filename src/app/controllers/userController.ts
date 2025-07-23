@@ -80,29 +80,6 @@ export async function toggleUserStatus(userId: string, currentStatus: string): P
 }
 
 /**
- * Deletes a user from the system
- */
-export async function deleteUser(userId: string): Promise<void> {
-  const supabase = createClient();
-  
-  // First, you might want to delete the user from auth.users
-  // Note: This requires admin rights and special configuration
-  // const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-  // if (authError) throw new Error(`Failed to delete auth user: ${authError.message}`);
-  
-  // Then delete from your users table
-  const { error } = await supabase
-    .from('users')
-    .delete()
-    .eq('user_id', userId);
-  
-  if (error) {
-    console.error('Error deleting user:', error);
-    throw new Error(`Failed to delete user: ${error.message}`);
-  }
-}
-
-/**
  * Updates a user's profile information
  */
 export async function updateUserProfile(
