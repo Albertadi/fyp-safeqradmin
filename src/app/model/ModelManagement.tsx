@@ -263,57 +263,43 @@ export default function ModelManagement() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete ML Model Modal */}
       {modelToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
-          {/* Background overlay */}
           <div className="absolute inset-0 bg-black opacity-50 transition-opacity duration-150"></div>
 
-          {/* Modal content */}
-          <div
-            className={`relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all duration-150 ${
-              modelToDelete ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-            }`}
-          >
-            <div className="flex justify-between items-center p-6">
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 transition-all duration-150">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Delete ML Model</h2>
-              <button
-                onClick={() => setModelToDelete(null)}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Close"
-              >
-                <X className="w-6 h-6" />
+              <button onClick={() => setModelToDelete(null)} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 text-center space-y-4">
-              <p className="text-gray-800 text-base">
-                Are you sure you want to delete{' '}
-                <strong>Model Version v{modelToDelete?.version || ''}</strong>?
+
+            <div className="space-y-4 text-center">
+              <p className="text-gray-800">
+                Are you sure you want to delete <strong>Model Version v{modelToDelete.version}</strong>?
               </p>
               <p className="text-sm text-gray-700">
-                Status:{' '}
-                <span
-                  className={modelToDelete?.is_active ? 'text-green-600' : 'text-yellow-600'}
-                >
-                  {modelToDelete?.is_active ? 'Active' : 'Idle'}
+                Status: <span className={modelToDelete.is_active ? "text-green-600" : "text-yellow-600"}>
+                  {modelToDelete.is_active ? "Active" : "Idle"}
                 </span>
               </p>
-              {deleteError && <p className="text-red-600">{deleteError}</p>}
-              <div className="flex justify-center gap-3 mt-6">
+              {deleteError && <div className="text-red-600 text-sm">{deleteError}</div>}
+              <div className="flex justify-center space-x-4 mt-6">
                 <button
                   onClick={() => setModelToDelete(null)}
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded hover:bg-gray-300"
+                  className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmDelete}
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2 justify-center"
+                  className={`px-4 py-2 text-sm rounded-md text-white ${isDeleting ? "bg-red-300" : "bg-red-600 hover:bg-red-700"}`}
                 >
-                  {isDeleting ? 'Deleting...' : 'Delete Model'}
-                  <Trash2 className="w-4 h-4" />
+                  {isDeleting ? "Deleting..." : "Delete Model"}
                 </button>
               </div>
             </div>
