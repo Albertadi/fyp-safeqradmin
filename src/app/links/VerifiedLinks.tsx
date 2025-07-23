@@ -564,55 +564,44 @@ export default function VerifiedLinksManagement() {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Verified Link Modal */}
       {linkToDelete && (
-        <div className="fixed inset-0 z-50 backdrop-blur-sm bg-opacity-30 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="flex justify-between items-center p-6 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">Confirm Delete Link</h2>
-              <button
-                onClick={() => setLinkToDelete(null)}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Close"
-              >
-                <X className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
+          <div className="absolute inset-0 bg-black opacity-50 transition-opacity duration-150"></div>
+
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 transition-all duration-150">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Delete Link</h2>
+              <button onClick={() => setLinkToDelete(null)} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
-              <p className="text-gray-700 mb-2">Are you sure you want to delete this link?</p>
-              <p className="text-sm text-gray-500 mb-6 break-all">{linkToDelete.url}</p>
-              {deleteError && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
-                  <p className="text-red-600 text-sm">{deleteError}</p>
-                </div>
-              )}
-              <div className="flex justify-end gap-3">
+
+            <div className="space-y-4 text-center">
+              <p className="text-gray-800">Are you sure you want to delete this link?</p>
+              <p className="text-sm text-gray-700 break-words">{linkToDelete.url}</p>
+              {deleteError && <div className="text-red-600 text-sm">{deleteError}</div>}
+              <div className="flex justify-center space-x-4 mt-6">
                 <button
                   onClick={() => setLinkToDelete(null)}
+                  className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmDelete}
+                  className={`px-4 py-2 text-sm rounded-md text-white ${isDeleting ? "bg-red-300" : "bg-red-600 hover:bg-red-700"}`}
                   disabled={isDeleting}
-                  className="px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
                 >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    'Delete'
-                  )}
+                  {isDeleting ? "Deleting..." : "Confirm Delete"}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
