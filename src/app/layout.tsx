@@ -24,10 +24,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // 1️⃣ Create a server‐side Supabase client
+  // Create a server‐side Supabase client
   const supabase = await createClient();
 
-  // 2️⃣ Check the current user session
+  // Check the current user session
   const {
     data: { user },
     error,

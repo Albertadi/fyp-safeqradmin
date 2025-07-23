@@ -69,8 +69,12 @@ export default function VerifyModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-opacity-50 backdrop-blur-sm flex items-center justify-center px-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 md:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-auto">
+      {/* Background Overlay */}
+      <div className="absolute inset-0 bg-black opacity-50 backdrop-blur-md transition-opacity duration-150"></div>
+
+      {/* Modal Content */}
+      <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6 md:p-8 z-10">
         {status === 'duplicate' ? (
           <div className="flex flex-col items-center justify-center py-8">
             <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
