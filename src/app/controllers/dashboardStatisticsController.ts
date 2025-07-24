@@ -1,4 +1,4 @@
-// src/app/private/actions.ts
+// src/app/controller/dashboardStatisticsController.ts
 import { createClient } from '@/utils/supabase/server';
 
 export type DashboardStats = {
