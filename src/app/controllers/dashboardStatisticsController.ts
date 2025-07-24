@@ -6,6 +6,8 @@ export type DashboardStats = {
   activeUsers: number;
   suspendedUsers: number;
   totalScans: number;
+  safeScans: number;
+  maliciousScans: number;
 };
 
 export async function isBackendOnline(): Promise<boolean> {
@@ -30,7 +32,6 @@ export async function isBackendOnline(): Promise<boolean> {
     return false;
   }
 }
-
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient();
@@ -57,21 +58,44 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     .from('qr_scans')
     .select('*', { head: true, count: 'exact' });
 
+  // safe scans
+  const safeScansRes = await supabase
+    .from('qr_scans')
+    .select('*', { head: true, count: 'exact' })
+    .eq('security_status', 'Safe');
+
+  // malicious scans
+  const maliciousScansRes = await supabase
+    .from('qr_scans')
+    .select('*', { head: true, count: 'exact' })
+    .eq('security_status', 'Malicious');
+
   // coalesce null → 0 to satisfy `number` type
-  const totalUsers     = usersRes.count     ?? 0;
-  const activeUsers    = activeRes.count    ?? 0;
+  const totalUsers = usersRes.count ?? 0;
+  const activeUsers = activeRes.count ?? 0;
   const suspendedUsers = suspendedRes.count ?? 0;
-  const totalScans     = scansRes.count     ?? 0;
+  const totalScans = scansRes.count ?? 0;
+  const safeScans = safeScansRes.count ?? 0;
+  const maliciousScans = maliciousScansRes.count ?? 0;
 
   // optional: log any errors
-  if (usersRes.error || activeRes.error || suspendedRes.error || scansRes.error) {
+  if (usersRes.error || activeRes.error || suspendedRes.error || scansRes.error || 
+      safeScansRes.error || maliciousScansRes.error) {
     console.error('Dashboard fetch errors:', {
-      usersError:     usersRes.error,
-      activeError:    activeRes.error,
+      usersError: usersRes.error,
+      activeError: activeRes.error,
       suspendedError: suspendedRes.error,
-      scansError:     scansRes.error,
-    });
+      scansError: scansRes.error,
+      safeScansError: safeScansRes.error,
+      maliciousScansError: maliciousScansRes.error,    });
   }
 
-  return { totalUsers, activeUsers, suspendedUsers, totalScans };
+  return { 
+    totalUsers, 
+    activeUsers, 
+    suspendedUsers, 
+    totalScans, 
+    safeScans, 
+    maliciousScans 
+  };
 }
