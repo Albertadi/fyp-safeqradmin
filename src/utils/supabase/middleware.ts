@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { AuthApiError } from "@supabase/supabase-js" // Import AuthApiError
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -25,10 +26,39 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  // IMPORTANT: DO NOT REMOVE auth.getUser()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  let user = null
+  let authError = null
+
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    user = data.user
+    authError = error // Capture the error if any
+  } catch (e: any) {
+    // Catch any unexpected errors during getUser() call
+    console.error("Middleware: Unexpected error during getUser():", e)
+    authError = e // Treat as an auth error for redirection purposes
+  }
+
+  // Handle specific Supabase Auth errors like expired refresh tokens
+  if (authError instanceof AuthApiError) {
+    // Check for common session-related errors [^1]
+    if (
+      authError.code === "refresh_token_not_found" ||
+      authError.code === "session_expired" ||
+      authError.code === "jwt_expired"
+    ) {
+      console.log("Middleware: Detected expired/invalid session. Forcing sign out and redirecting.")
+      // Explicitly sign out to clear client-side cookies/storage
+      await supabase.auth.signOut()
+      // Ensure the response also clears cookies if signOut() didn't fully propagate
+      supabaseResponse.cookies.delete("sb-access-token")
+      supabaseResponse.cookies.delete("sb-refresh-token")
+      // Then proceed with redirection
+      const url = request.nextUrl.clone()
+      url.pathname = "/" // Redirect to home page
+      return NextResponse.redirect(url)
+    }
+  }
 
   console.log("Middleware: Request Path:", request.nextUrl.pathname)
   console.log("Middleware: User ID:", user ? user.id : "No user")
@@ -54,19 +84,6 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/" // Redirect to home page
     return NextResponse.redirect(url)
   }
-
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
 
   return supabaseResponse
 }
