@@ -47,7 +47,6 @@ export async function updateSession(request: NextRequest) {
       authError.code === "session_expired" ||
       authError.code === "jwt_expired"
     ) {
-      console.log("Middleware: Detected expired/invalid session. Forcing sign out and redirecting.")
       // Explicitly sign out to clear client-side cookies/storage
       await supabase.auth.signOut()
       // Ensure the response also clears cookies if signOut() didn't fully propagate
@@ -59,10 +58,6 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
   }
-
-  console.log("Middleware: Request Path:", request.nextUrl.pathname)
-  console.log("Middleware: User ID:", user ? user.id : "No user")
-  console.log("Middleware: User Email:", user ? user.email : "N/A")
 
   // Define paths that are publicly accessible without authentication
   const publicPaths = ["/", "/login", "/auth/confirm", "/resetpassword"]
@@ -79,7 +74,6 @@ export async function updateSession(request: NextRequest) {
 
   // If there's no user AND the current path is NOT a public path, then redirect to home
   if (!user && !isPublicPath) {
-    console.log("Middleware: Redirecting unauthenticated user from protected path to /")
     const url = request.nextUrl.clone()
     url.pathname = "/" // Redirect to home page
     return NextResponse.redirect(url)
