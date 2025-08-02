@@ -26,10 +26,10 @@ export default function Sidebar() {
   const menuItems = [
     { label: 'Dashboard', icon: Home, href: '/private' },
     { label: 'User Management', icon: Users, href: '/management' },
-    { label: 'Reports Management', icon: BarChart3, href: '/private/Reports' },
+    { label: 'Scan Management', icon: QrCode, href: '/private/QRmanagement'},
+    { label: 'Report Management', icon: BarChart3, href: '/private/Reports' },
     { label: 'Model Management', icon: Brain, href: '/model' },
     { label: 'Verified Links', icon: Link, href: '/links' },
-    { label: 'QR Management', icon: QrCode, href: '/private/QRmanagement'},
   ];
 
   return (
