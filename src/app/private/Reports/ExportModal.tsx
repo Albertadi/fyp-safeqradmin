@@ -14,7 +14,7 @@ interface ScanDetails {
 
 type Status = 'idle' | 'loading' | 'success' | 'duplicate' | 'error';
 
-export default function VerifyModal({
+export default function ExportModal({
   scanId,
   onClose,
   onSubmit,

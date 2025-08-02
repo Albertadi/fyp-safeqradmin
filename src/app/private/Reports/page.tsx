@@ -6,7 +6,7 @@ import { getReports } from './actions';
 import StatusDropdown from './statusDropdown';
 import ScanModal from '../Reports/ScanModal';
 import UserModal from '../Reports/UserModal';
-import VerifyModal from '../Reports/VerifyModal';
+import ExportModal from './ExportModal';
 import { getScanById, addVerifiedLink } from '../../controllers/verifiedLinksController';
 import { updateReportStatus } from '../../controllers/verifiedLinksController';
 
@@ -22,7 +22,7 @@ export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [verifyTarget, setVerifyTarget] = useState<{ scanId: string } | null>(null);
+  const [exportTarget, setExportTarget] = useState<{ scanId: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -41,7 +41,6 @@ export default function ReportsPage() {
     fetchReports();
   }, []);
 
-  // Filter reports based on search term
   const filteredReports = useMemo(() => {
     if (!searchTerm.trim()) {
       return reports;
@@ -72,56 +71,51 @@ export default function ReportsPage() {
     setSelectedUserId(null);
   };
 
-  const openVerifyModal = (scanId: string) => {
-    setVerifyTarget({ scanId });
+  const openExportModal = (scanId: string) => {
+    setExportTarget({ scanId });
   };
 
-  const closeVerifyModal = () => {
-    setVerifyTarget(null);
+  const closeExportModal = () => {
+    setExportTarget(null);
   };
 
-const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<boolean> => {
-  if (!verifyTarget) return false;
+  const confirmExport = async (securityStatus: 'Safe' | 'Malicious'): Promise<boolean> => {
+    if (!exportTarget) return false;
 
-  setIsLoading(true);
+    setIsLoading(true);
 
-  try {
-    const scanData = await getScanById(verifyTarget.scanId);
-    if (!scanData) throw new Error('Scan not found.');
+    try {
+      const scanData = await getScanById(exportTarget.scanId);
+      if (!scanData) throw new Error('Scan not found.');
 
-    // No duplicate check here - done in modal
+      await addVerifiedLink(scanData.url, securityStatus);
 
-    await addVerifiedLink(scanData.url, securityStatus);
+      const relatedReport = reports.find(r => r.scan_id === exportTarget.scanId);
+      if (relatedReport) {
+        await updateReportStatus(relatedReport.report_id, 'Closed');
+      }
 
-    const relatedReport = reports.find(r => r.scan_id === verifyTarget.scanId);
-    if (relatedReport) {
-      await updateReportStatus(relatedReport.report_id, 'Closed');
+      const updatedReports = await getReports();
+      setReports(updatedReports);
+
+      return true;
+    } catch (error) {
+      console.error('Error exporting link:', error);
+      alert(error instanceof Error ? error.message : 'Unknown error');
+      return false;
+    } finally {
+      setIsLoading(false);
     }
-
-    const updatedReports = await getReports();
-    setReports(updatedReports);
-
-    return true; // success
-  } catch (error) {
-    console.error('Error verifying link:', error);
-    alert(error instanceof Error ? error.message : 'Unknown error');
-    return false;
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  };
 
   return (
     <div className="p-6 w-full min-h-screen bg-white">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
           <p className="text-gray-600 mt-1">All reports in the SafeQR system</p>
         </div>
 
-        {/* Search */}
         <div className="mb-6">
           <div className="relative w-full">
             <div className="absolute left-3 top-2.5 text-gray-400">
@@ -137,7 +131,6 @@ const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<bool
           </div>
         </div>
 
-        {/* Search Results Info */}
         {searchTerm.trim() && (
           <div className="mb-4 text-sm text-gray-600">
             {filteredReports.length === 0 ? (
@@ -150,7 +143,6 @@ const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<bool
           </div>
         )}
 
-        {/* Reports Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
@@ -223,17 +215,16 @@ const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<bool
                         />
                       </td>
                       <td className="px-6 py-4 text-sm align-middle">
-                      {report.status === 'Closed' ? (
-                        <span className="text-gray-400 cursor-not-allowed">Exported</span>
-                      ) : (
-                        <button
-                          onClick={() => openVerifyModal(report.scan_id)}
-                          className="text-green-600 hover:text-green-800 hover:underline"
-                        >
-                          Export
-                        </button>
-                      )}
-
+                        {report.status === 'Closed' ? (
+                          <span className="text-gray-400 cursor-not-allowed">Exported</span>
+                        ) : (
+                          <button
+                            onClick={() => openExportModal(report.scan_id)}
+                            className="text-green-600 hover:text-green-800 hover:underline"
+                          >
+                            Export
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -243,14 +234,13 @@ const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<bool
           </div>
         </div>
 
-        {/* Modals */}
         {selectedScanId && <ScanModal scanId={selectedScanId} onClose={closeScanModal} />}
         {selectedUserId && <UserModal userId={selectedUserId} onClose={closeUserModal} />}
-        {verifyTarget && (
-          <VerifyModal
-            scanId={verifyTarget.scanId}
-            onClose={closeVerifyModal}
-            onSubmit={confirmVerify}
+        {exportTarget && (
+          <ExportModal
+            scanId={exportTarget.scanId}
+            onClose={closeExportModal}
+            onSubmit={confirmExport}
           />
         )}
       </div>
