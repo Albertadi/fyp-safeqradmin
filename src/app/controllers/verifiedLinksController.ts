@@ -20,8 +20,6 @@ export interface CreateVerifiedLinkData {
 
 }
 
-const TABLE_NAME = 'verified_links';
-
 /**
  * Test database connection
  */
@@ -29,7 +27,7 @@ export async function testConnection(): Promise<boolean> {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .select('count')
       .limit(1);
     
@@ -55,7 +53,7 @@ export async function fetchVerifiedLinks(): Promise<VerifiedLink[]> {
 
   while (true) {
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .select('*')
       .order('created_at', { ascending: false })
       .range(start, start + batchSize - 1);
@@ -83,7 +81,7 @@ export async function getVerifiedLink(linkId: string): Promise<VerifiedLink | nu
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .select('*')
       .eq('link_id', linkId)
       .single();
@@ -121,7 +119,7 @@ export async function createVerifiedLink(linkData: CreateVerifiedLinkData): Prom
 
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .insert([{
         ...linkData,
         created_at: new Date().toISOString(),
@@ -161,7 +159,7 @@ export async function deleteVerifiedLink(linkId: string): Promise<void> {
 
     // Then delete the verified link record
     const { error: deleteLinkError } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .delete()
       .eq('link_id', linkId);
 
@@ -187,7 +185,7 @@ export async function toggleSecurityStatus(linkId: string, currentStatus: 'Safe'
 
     // 1. Update the verified link's status
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .update({ security_status: newStatus })
       .eq('link_id', linkId)
       .select()
@@ -227,7 +225,7 @@ export async function getVerifiedLinkByUrl(url: string): Promise<VerifiedLink | 
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .select('*')
       .eq('url', url)
       .single();
@@ -267,7 +265,7 @@ export async function getLinksBySecurityStatus(status: 'Safe' | 'Malicious'): Pr
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .select('*')
       .eq('security_status', status)
       .order('created_at', { ascending: false });
@@ -291,7 +289,7 @@ export async function searchVerifiedLinks(searchTerm: string): Promise<VerifiedL
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from(TABLE_NAME)
+      .from('verified_links')
       .select('*')
       .or(`url.ilike.%${searchTerm}%`)
       .order('created_at', { ascending: false });
