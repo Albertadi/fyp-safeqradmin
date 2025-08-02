@@ -24,10 +24,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // 1️⃣ Create a server‐side Supabase client
+  // Create a server‐side Supabase client
   const supabase = await createClient();
 
-  // 2️⃣ Check the current user session
+  // Check the current user session
   const {
     data: { user },
     error,
@@ -47,7 +47,7 @@ export default async function RootLayout({
           {user && <Sidebar />}
 
           {/* main content area */}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto relative z-0">
             {children}
           </main>
         </div>

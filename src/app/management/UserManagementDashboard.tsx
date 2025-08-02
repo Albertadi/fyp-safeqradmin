@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Search, UserPlus, Filter, Trash2, Ban, Check, AlertCircle, Clock, Edit2, Menu, Home, Users, Bell, Shield, LogOut, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle } from "lucide-react";
+import React, { useState, useEffect, useCallback  } from "react";
+import { Search, UserPlus, Filter, Trash2, Ban, Check, AlertCircle, Clock, Edit2, Menu, Home, Users, Bell, Shield, LogOut, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { fetchUsers, toggleUserStatus, deleteUser, User, autoLiftExpiredSuspensions } from "@/app/lib/supabase";
+import { fetchUsers, toggleUserStatus, User, autoLiftExpiredSuspensions } from "@/app/lib/supabase";
 import { suspendUser, liftSuspension, fetchSuspensionByUser, getExpiredSuspensions, getActiveSuspensions } from "@/app/controllers/suspensionController";
 import SuspensionModal from "@/app/components/suspensionModal"
 import LiftSuspensionModal from "@/app/components/liftSuspensionModal"
@@ -198,25 +198,26 @@ export default function UserManagementDashboard() {
       setActiveSuspensionsCount(activeSuspensions.length);
       setExpiredSuspensionsCount(expiredSuspensions.length);
       
-      // If there are expired suspensions, optionally lift them
+      // Automatically lift expired suspensions without asking for confirmation
       if (expiredSuspensions.length > 0) {
+        console.log(`Found ${expiredSuspensions.length} expired suspension${expiredSuspensions.length !== 1 ? 's' : ''}, lifting automatically...`);
+        
+        const liftedCount = await autoLiftExpiredSuspensions();
+        
+        // Refresh the users list to reflect the changes
+        const updatedUsers = await fetchUsers();
+        setUsers(updatedUsers);
+        
+        // Update the counts after lifting
+        const newActiveSuspensions = await getActiveSuspensions();
+        setActiveSuspensionsCount(newActiveSuspensions.length);
+        setExpiredSuspensionsCount(0); // Should be 0 after lifting
+        
         if (!isAutomatic) {
-          const shouldLift = window.confirm(
-            `Found ${expiredSuspensions.length} expired suspension${expiredSuspensions.length !== 1 ? 's' : ''}. Would you like to lift them?`
-          );
-          
-          if (shouldLift) {
-            const liftedCount = await autoLiftExpiredSuspensions();
-            
-            // Refresh the users list
-            const updatedUsers = await fetchUsers();
-            setUsers(updatedUsers);
-            
-            alert(`Successfully lifted ${liftedCount} expired suspension${liftedCount !== 1 ? 's' : ''}`);
-          }
+          alert(`Automatically lifted ${liftedCount} expired suspension${liftedCount !== 1 ? 's' : ''}`);
+        } else {
+          console.log(`Successfully lifted ${liftedCount} expired suspension${liftedCount !== 1 ? 's' : ''} automatically`);
         }
-      } else if (!isAutomatic) {
-        alert("No expired suspensions found");
       }
       
       setLastSuspensionCheck(new Date());
@@ -353,39 +354,6 @@ export default function UserManagementDashboard() {
       setRoleWarningOpen(false);
       setRoleChangeTarget(null);
       setPendingRoleChange("");
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (operationLoading) return;
-    
-    const user = users.find(u => u.user_id === userId);
-    if (!user) {
-      alert("User not found");
-      return;
-    }
-    
-    const confirmMessage = `Are you sure you want to delete user "${user.username}"? This action cannot be undone.`;
-    
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
-
-    try {
-      setOperationLoading(`delete-${userId}`);
-      console.log(`Deleting user: ${userId}`);
-      
-      await deleteUser(userId);
-      
-      setUsers(prevUsers => prevUsers.filter(user => user.user_id !== userId));
-      
-      console.log(`Successfully deleted user ${userId}`);
-    } catch (err) {
-      console.error("Error deleting user:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete user";
-      alert(errorMessage);
-    } finally {
-      setOperationLoading(null);
     }
   };
 
@@ -642,13 +610,6 @@ export default function UserManagementDashboard() {
                                     <Check className="w-5 h-5" />
                                   </button>
                                 )}
-                                <button 
-                                  className="p-1 rounded-md hover:bg-red-100 text-red-600" 
-                                  title="Delete User"
-                                  onClick={() => handleDeleteUser(user.user_id)}
-                                >
-                                  <Trash2 className="w-5 h-5" />
-                                </button>
                               </div>
                             </td>
                           </tr>
@@ -718,6 +679,8 @@ export default function UserManagementDashboard() {
               />
             </div>
           </div>
+
         </div>
+        
   );
 }

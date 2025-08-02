@@ -1,72 +1,78 @@
-'use client';
+"use client"
 
-import React, { useState, useEffect } from 'react';
-import { Plus, X } from 'lucide-react';
-import { createMLModel, fetchMLModels, type MLModel } from '../../controllers/mlModelsController';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from "react"
+import { Plus, X } from "lucide-react"
+import { createMLModel, fetchMLModels, type MLModel } from "@/app/controllers/mlModelsController"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function AddMLModelPage() {
-  const router = useRouter();
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-  const [storagePath, setStoragePath] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Track models to find next version
-  const [models, setModels] = useState<MLModel[]>([]);
+  const prefilledVersion = searchParams?.get("version") ?? "" // Safely access searchParams
+  const [version, setVersion] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [models, setModels] = useState<MLModel[]>([])
 
   useEffect(() => {
     async function loadModels() {
       try {
-        const fetchedModels = await fetchMLModels();
-        setModels(fetchedModels);
+        const fetchedModels = await fetchMLModels()
+        setModels(fetchedModels)
       } catch (err) {
-        console.error('Failed to fetch models for versioning:', err);
+        console.error("Failed to fetch models for validation:", err)
       }
     }
-    loadModels();
-  }, []);
+    loadModels()
+  }, [])
 
-  // Calculate next version string like '1.0', '2.0', ...
-  const getNextVersion = () => {
-    if (models.length === 0) return '1.0';
+  // Only set prefilled version on initial mount
+  useEffect(() => {
+    setVersion(prefilledVersion)
+  }, [prefilledVersion])
 
-    // Parse existing versions and get max major number
-    const maxMajor = models.reduce((max, m) => {
-      const major = parseInt(m.version.split('.')[0], 10);
-      return isNaN(major) ? max : Math.max(max, major);
-    }, 0);
-
-    return `${maxMajor + 1}.0`;
-  };
+  const isVersionExists = (versionToCheck: string) => {
+    return models.some((m) => m.version === versionToCheck)
+  }
 
   const handleAddModel = async () => {
-    if (!storagePath.trim()) {
-      alert('Please enter the model storage URL');
-      return;
+    if (!version.trim()) {
+      alert("Please enter the model version")
+      return
     }
 
-    setIsSubmitting(true);
-    setError(null);
+    const versionRegex = /^\d+\.\d+$/
+    if (!versionRegex.test(version.trim())) {
+      setError("Please enter a valid version format (e.g., 1.0, 2.1)")
+      return
+    }
+
+    if (isVersionExists(version.trim())) {
+      setError("This version already exists. Please use a different version number.")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
 
     const newModel: Partial<MLModel> = {
-      version: getNextVersion(),
-      storage_path: storagePath.trim(),
+      version: version.trim(),
       created_at: new Date().toISOString(),
       is_active: false,
-      trained_by: 'c3b75bee-9829-45ea-b5a6-e6ab3dd66b33',
-    };
+      trained_by: "c3b75bee-9829-45ea-b5a6-e6ab3dd66b33",
+    }
 
     try {
-      await createMLModel(newModel);
-      router.push('/model');
+      await createMLModel(newModel)
+      router.push("/model")
     } catch (err) {
-      console.error('Error adding model:', err);
-      setError('Failed to add model. Please try again.');
+      console.error("Error adding model:", err)
+      setError("Failed to add model. Please try again.")
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-white text-gray-900 p-6">
@@ -74,7 +80,7 @@ export default function AddMLModelPage() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold">Add New ML Model</h2>
           <button
-            onClick={() => router.push('/model')}
+            onClick={() => router.push("/model")}
             aria-label="Close"
             className="text-gray-500 hover:text-gray-800"
             disabled={isSubmitting}
@@ -87,15 +93,15 @@ export default function AddMLModelPage() {
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="storagePath" className="block mb-1 font-medium">
-              Model Storage URL
+            <label htmlFor="version" className="block mb-1 font-medium">
+              Model Version
             </label>
             <input
-              type="url"
-              id="storagePath"
-              placeholder="https://your-storage-url/model.onnx"
-              value={storagePath}
-              onChange={(e) => setStoragePath(e.target.value)}
+              type="text"
+              id="version"
+              placeholder="e.g., 1.0"
+              value={version}
+              onChange={(e) => setVersion(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={isSubmitting}
             />
@@ -114,19 +120,8 @@ export default function AddMLModelPage() {
                   fill="none"
                   viewBox="0 0 24 24"
                 >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                 </svg>
                 Adding...
               </>
@@ -140,5 +135,5 @@ export default function AddMLModelPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }

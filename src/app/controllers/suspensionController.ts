@@ -36,24 +36,46 @@ export async function deleteExpiredSuspensions() {
   try {
     const now = new Date().toISOString()
     
-    const { data, error } = await supabase
+    // 1) delete expired suspensions and return the deleted rows
+    const { data: deletedSuspensions, error: deleteError } = await supabase
       .from('suspensions')
       .delete()
-      .lt('end_date', now)  // Delete rows where end_date is less than current time
-      .select()  // Return deleted rows for logging
+      .lt('end_date', now)
+      .select('user_id')  // only need user_id for the next step
     
-    if (error) {
-      console.error('Error deleting expired suspensions:', error)
+    if (deleteError) {
+      console.error('Error deleting expired suspensions:', deleteError)
       return { success: false, deletedCount: 0 }
     }
     
-    console.log(`Deleted ${data?.length || 0} expired suspensions`)
-    return { success: true, deletedCount: data?.length || 0 }
+    const deletedCount = deletedSuspensions?.length || 0
+    console.log(`Deleted ${deletedCount} expired suspensions`)
+    
+    // 2) if any were deleted, update those users to active
+    if (deletedCount > 0) {
+      const userIds = deletedSuspensions.map(s => s.user_id)
+      
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ account_status: 'active' })
+        .in('id', userIds)    // batch update all affected users
+      
+      if (updateError) {
+        console.error('Error reactivating users:', updateError)
+        return { success: false, deletedCount }
+      }
+      
+      console.log(`Reactivated ${userIds.length} users`)
+    }
+    
+    return { success: true, deletedCount }
+    
   } catch (error) {
-    console.error('Error deleting expired suspensions:', error)
+    console.error('Unexpected error in deleteExpiredSuspensions:', error)
     return { success: false, deletedCount: 0 }
   }
 }
+
 
 export async function fetchSuspensionByUser(userId: string) {
   const supabase = await createClient()
