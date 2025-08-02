@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getScanDetails } from '../../controllers/scanActionsController';
-import { checkUrlExists } from '../../controllers/verifiedLinksController';
+import { getScanDetails, submitVerification } from '../../controllers/verifyModalController';
 
 interface ScanDetails {
   scan_id: string;
@@ -18,10 +17,12 @@ export default function VerifyModal({
   scanId,
   onClose,
   onSubmit,
+  reportId, // Optional prop to link to a report
 }: {
   scanId: string;
   onClose: () => void;
   onSubmit: (label: 'Safe' | 'Malicious') => void;
+  reportId?: string;
 }) {
   const [label, setLabel] = useState<'Safe' | 'Malicious'>('Safe');
   const [scanDetails, setScanDetails] = useState<ScanDetails | null>(null);
@@ -29,17 +30,10 @@ export default function VerifyModal({
 
   useEffect(() => {
     async function fetchScanDetails() {
-      try {
-        const result = await getScanDetails(scanId);
-        if (result) {
-          setScanDetails(result);
-        } else {
-          setScanDetails(null);
-        }
-      } catch (error) {
-        console.error('Error fetching scan details:', error);
-        setScanDetails(null);
-      }
+      setStatus('loading');
+      const result = await getScanDetails(scanId);
+      setScanDetails(result);
+      setStatus(result ? 'idle' : 'error');
     }
 
     fetchScanDetails();
@@ -49,22 +43,11 @@ export default function VerifyModal({
     if (!scanDetails) return;
     setStatus('loading');
 
-    try {
-      const exists = await checkUrlExists(scanDetails.decoded_content);
-      if (exists) {
-        setStatus('duplicate');
-        return;
-      }
+    const verifyStatus = await submitVerification(scanId, label, reportId);
+    setStatus(verifyStatus);
 
-      await onSubmit(label);
-      setStatus('success');
-
-      setTimeout(() => {
-        onClose();
-      }, 2000);
-    } catch (error) {
-      console.error('Error submitting:', error);
-      setStatus('error');
+    if (verifyStatus === 'success') {
+      setTimeout(onClose, 2000);
     }
   };
 
