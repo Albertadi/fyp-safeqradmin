@@ -86,6 +86,17 @@ export async function updateUserProfile(
   userId: string, 
   userData: { username?: string; role?: string; email?: string }
 ): Promise<void> {
+  // Validation
+  if (!userData.username) {
+    throw new Error("Username is required");
+  }
+  if (userData.username.length < 8) {
+    throw new Error("Username must be at least 8 characters");
+  }
+  if (!userData.role) {
+    throw new Error("Role is required");
+  }
+
   const supabase = createClient();
   
   // Create the update payload
@@ -105,19 +116,8 @@ export async function updateUserProfile(
     throw new Error(`Failed to update user profile: ${error.message}`);
   }
   
-  // If email was changed, you might want to update the auth user as well
-  // This requires admin privileges and special configuration
-  if (userData.email) {
-    // This is commented out as it requires admin access
-    // const { error: authError } = await supabase.auth.admin.updateUserById(
-    //   userId,
-    //   { email: userData.email }
-    // );
-    // if (authError) {
-    //   throw new Error(`Failed to update auth user: ${authError.message}`);
-    // }
-  }
 }
+
 
 
 /**
@@ -136,18 +136,82 @@ export interface CreateUserResponse {
   user?: any;
   error?: any;
 }
-
 export async function createUser(userData: CreateUserData): Promise<CreateUserResponse> {
   try {
     const supabase = createClient();
 
-    // Sign up the user with Supabase Auth
+    if (!userData.username) {
+      return {
+        success: false,
+        message: 'Username is required'
+      };
+    }
+    if (userData.username.length < 8) {
+      return {
+        success: false,
+        message: 'Username must be at least 8 characters'
+      };
+    }
+
+    if (!userData.email) {
+      return {
+        success: false,
+        message: 'Email is required'
+      };
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userData.email)) {
+      return {
+        success: false,
+        message: 'Email is invalid'
+      };
+    }
+
+    if (!userData.password) {
+      return {
+        success: false,
+        message: 'Password is required'
+      };
+    }
+    if (userData.password.length < 8) {
+      return {
+        success: false,
+        message: 'Password must be at least 8 characters'
+      };
+    }
+
+    const { data: existingEmail } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', userData.email)
+      .single();
+
+    if (existingEmail) {
+      return {
+        success: false,
+        message: 'A user with this email address has already been registered.'
+      };
+    }
+
+    const { data: existingUsername } = await supabase
+      .from('users')
+      .select('username')
+      .eq('username', userData.username)
+      .single();
+
+    if (existingUsername) {
+      return {
+        success: false,
+        message: 'Username already taken'
+      };
+    }
+
+    // Sign up user in Supabase Auth
     const { data, error } = await supabase.auth.signUp({
       email: userData.email,
       password: userData.password,
       options: {
         data: {
-          username: userData.username, 
+          username: userData.username,
         }
       }
     });
@@ -160,8 +224,8 @@ export async function createUser(userData: CreateUserData): Promise<CreateUserRe
         statusCode: error.status,
         name: error.name,
       });
-      
-      // Handle specific Supabase error messages
+
+      // ✅ Handle specific known Supabase errors
       if (error.message.includes('User already registered')) {
         return {
           success: false,
@@ -169,31 +233,7 @@ export async function createUser(userData: CreateUserData): Promise<CreateUserRe
           error
         };
       }
-      
-      if (error.message.includes('Database error saving new user')) {
-        return {
-          success: false,
-          message: 'Database configuration issue detected. This usually indicates a database trigger or constraint problem. Please contact support.',
-          error
-        };
-      }
-      
-      if (error.message.includes('unexpected_failure')) {
-        return {
-          success: false,
-          message: 'Service temporarily unavailable. Please try again in a few moments.',
-          error
-        };
-      }
-      
-      if (error.message.includes('Password should be at least')) {
-        return {
-          success: false,
-          message: 'Password does not meet requirements',
-          error
-        };
-      }
-      
+
       if (error.message.includes('Invalid email')) {
         return {
           success: false,
@@ -216,19 +256,20 @@ export async function createUser(userData: CreateUserData): Promise<CreateUserRe
       };
     }
 
+    // ✅ Insert user profile
     const { error: profileError } = await supabase
       .from('users')
       .insert([
         {
-          user_id: data.user.id,           // FK → auth.users.id
-          username: userData.username,                   // username
+          user_id: data.user.id,
+          username: userData.username,
           email: userData.email,
-          role: 'end_user',           // default role
-          account_status: 'active'    // default status
+          role: 'end_user',
+          account_status: 'active'
         }
       ])
-      .select()                      // return the inserted row
-      .single()
+      .select()
+      .single();
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
@@ -241,8 +282,8 @@ export async function createUser(userData: CreateUserData): Promise<CreateUserRe
 
     return {
       success: true,
-      message: data.user.email_confirmed_at 
-        ? 'User created successfully' 
+      message: data.user.email_confirmed_at
+        ? 'User created successfully'
         : 'User created successfully. Please check email for verification.',
       user: data.user
     };
