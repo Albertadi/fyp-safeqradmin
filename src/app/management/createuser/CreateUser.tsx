@@ -40,8 +40,8 @@ export default function CreateUser() {
     // Validate username
     if (!formData.username) {
       newErrors.username = "Username is required";
-    } else if (formData.username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
+    } else if (formData.username.length < 8) {
+      newErrors.username = "Username must be at least 8 characters";
     }
     
     // Validate email
