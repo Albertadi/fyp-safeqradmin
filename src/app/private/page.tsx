@@ -100,7 +100,6 @@ export default async function PrivatePage() {
               </div>
             </div>
           </div>
-
           {/* User Statistics Section (Original Design) */}
           <div className="mb-10">
             <div className="flex items-center mb-6">

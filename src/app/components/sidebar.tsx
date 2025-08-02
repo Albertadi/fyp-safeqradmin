@@ -13,7 +13,8 @@ import {
   Shield,
   BarChart3,
   Brain,
-  Link
+  Link, // New icon for Verified Links
+  QrCode
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -28,6 +29,7 @@ export default function Sidebar() {
     { label: 'Reports Management', icon: BarChart3, href: '/private/Reports' },
     { label: 'Model Management', icon: Brain, href: '/model' },
     { label: 'Verified Links', icon: Link, href: '/links' },
+    { label: 'QR Management', icon: QrCode, href: '/private/QRmanagement'},
   ];
 
   return (
