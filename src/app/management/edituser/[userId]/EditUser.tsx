@@ -188,36 +188,8 @@ export default function EditUser({ userId }: EditUserProps) {
                     <h3 className="text-sm font-medium text-green-800">
                       User updated successfully!
                     </h3>
-                    <p className="mt-1 text-sm text-green-700">
-                      The changes to {user?.username}'s profile have been saved.
-                    </p>
-                    <p className="mt-2 text-sm text-green-600">
-                      Redirecting to management page in {countdown} seconds...
-                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleCancelRedirect}
-                    className="ml-3 text-green-600 hover:text-green-800"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="mt-3 flex space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/management")}
-                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
-                  >
-                    Go to Management
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleCancelRedirect}
-                    className="px-3 py-1 text-xs bg-white text-green-600 border border-green-600 rounded hover:bg-green-50"
-                  >
-                    Stay Here
-                  </button>
+
                 </div>
               </div>
             )}
@@ -256,7 +228,7 @@ export default function EditUser({ userId }: EditUserProps) {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                disabled={success}
+                disabled={true}     
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 placeholder-gray-500 disabled:bg-gray-50 disabled:text-gray-500"
                 placeholder="user@example.com"
               />
