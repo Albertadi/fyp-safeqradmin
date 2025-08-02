@@ -119,15 +119,20 @@ export default function VerifyModal({
           </div>
         ) : (
           <>
-            <h5 className="text-lg font-semibold mb-3 text-gray-900 text-left">
-              Verify URL Link:
-              <br />
-              <span className="text-blue-600 break-all text-s md:text-sm" title={scanDetails.decoded_content}>
-                {scanDetails.decoded_content}
-              </span>
+            <h5 className="text-lg font-semibold mb-1 text-gray-900 text-left">
+              Export URL:
             </h5>
+            <p className="text-sm text-gray-500 mb-4">
+              Export URL to verified links as training data
+            </p>
+            <span
+              className="text-blue-600 break-all text-s md:text-sm"
+              title={scanDetails.decoded_content}
+            >
+              {scanDetails.decoded_content}
+            </span>
 
-            <label htmlFor="labelSelect" className="block mb-2 text-gray-800 font-semibold">
+            <label htmlFor="labelSelect" className="block mt-6 mb-2 text-gray-800 font-semibold">
               True Label of URL Link:
             </label>
             <select

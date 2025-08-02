@@ -172,7 +172,7 @@ const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<bool
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Verify
+                    Export
                   </th>
                 </tr>
               </thead>
@@ -224,13 +224,13 @@ const confirmVerify = async (securityStatus: 'Safe' | 'Malicious'): Promise<bool
                       </td>
                       <td className="px-6 py-4 text-sm align-middle">
                       {report.status === 'Closed' ? (
-                        <span className="text-gray-400 cursor-not-allowed">Verified</span>
+                        <span className="text-gray-400 cursor-not-allowed">Exported</span>
                       ) : (
                         <button
                           onClick={() => openVerifyModal(report.scan_id)}
                           className="text-green-600 hover:text-green-800 hover:underline"
                         >
-                          Verify
+                          Export
                         </button>
                       )}
 
