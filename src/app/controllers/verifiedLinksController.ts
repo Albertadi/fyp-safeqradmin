@@ -414,16 +414,28 @@ export async function getScanByIdDebug(scanId: string) {
 export async function addVerifiedLink(url: string, securityStatus: string) {
   const supabase = await createClient(); 
 
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    console.error('Error retrieving current user:', userError)
+    throw new Error('Not authenticated')
+  }
+
+  const newLink = {
+    url,
+    security_status: securityStatus,
+    added_by: user.id,
+    created_at: new Date().toISOString(),
+  }
+
   const { data, error } = await supabase
     .from('verified_links')
-    .upsert({
-      url: url,
-      security_status: securityStatus,
-      added_by: '80a9d353-421f-4589-aea9-37b907398450',
-      created_at: new Date().toISOString(),
-    })
+    .upsert(newLink)
     .select()
-    .single();
+    .single()
 
   if (error) {
     console.error('Error adding verified link:', error);
