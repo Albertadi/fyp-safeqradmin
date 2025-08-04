@@ -47,14 +47,19 @@ export async function updateSession(request: NextRequest) {
       authError.code === "session_expired" ||
       authError.code === "jwt_expired"
     ) {
-      // Explicitly sign out to clear client-side cookies/storage
-      await supabase.auth.signOut()
-      // Ensure the response also clears cookies if signOut() didn't fully propagate
+      console.warn("Middleware: Session invalid, redirecting to login.", authError.code)
+
+      // Initiate signOut but don't await it, to prioritize immediate redirect.
+      // This helps prevent multiple concurrent requests from hitting Supabase
+      // with invalid tokens and potentially triggering rate limits.
+      supabase.auth.signOut().catch((e) => console.error("Middleware: Error during signOut:", e))
+
+      // Ensure the response also clears cookies
       supabaseResponse.cookies.delete("sb-access-token")
       supabaseResponse.cookies.delete("sb-refresh-token")
-      // Then proceed with redirection
+
       const url = request.nextUrl.clone()
-      url.pathname = "/" // Redirect to home page
+      url.pathname = "/" // Redirect to home page (login)
       return NextResponse.redirect(url)
     }
   }
