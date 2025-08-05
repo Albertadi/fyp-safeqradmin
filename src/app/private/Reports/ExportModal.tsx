@@ -83,7 +83,7 @@ export default function ExportModal({
                       d="M12 9v2m0 4h.01M21 12A9 9 0 1 1 3 12a9 9 0 0 1 18 0z"/>
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-yellow-800 mb-2 text-center">This link has already been verified.</h3>
+            <h3 className="text-lg font-semibold text-yellow-800 mb-2 text-center">This link has already been exported.</h3>
             <p className="text-gray-600 text-center">You cannot verify it again.</p>
             <button onClick={onClose} className="mt-6 px-4 py-2 rounded-md bg-gray-200 text-gray-800 font-semibold hover:bg-gray-300 transition">
               Close
