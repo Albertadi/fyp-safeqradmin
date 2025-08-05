@@ -28,8 +28,8 @@ export default function Sidebar() {
     { label: 'User Management', icon: Users, href: '/management' },
     { label: 'Scan Management', icon: QrCode, href: '/private/QRmanagement'},
     { label: 'Report Management', icon: BarChart3, href: '/private/Reports' },
-    { label: 'Model Management', icon: Brain, href: '/model' },
     { label: 'Verified Links', icon: Link, href: '/links' },
+    { label: 'Model Management', icon: Brain, href: '/model' },
   ];
 
   return (
