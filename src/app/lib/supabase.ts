@@ -527,6 +527,16 @@ export async function fetchSuspensionByUser(userId: string): Promise<Suspension 
 /**
  * Get current user session
  */
+export async function checkSession() {
+  const supabase = createClient()
+
+  const { data, error } = await supabase.auth.getSession()
+
+  if (error) { throw new Error("Failed to restore session: " + error.message) }
+  
+  return data
+}
+
 export async function getSession(access_token: string, refresh_token: string) {
   const supabase = createClient()
 
