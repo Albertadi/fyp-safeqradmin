@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createUser } from '@/app/controllers/userController'; 
+import { createUser } from '@/app/controllers/userController';
+import { validatePassword } from "@/app/components/validatePassword";
 
 // Define TypeScript interface for form data
 interface UserFormData {
@@ -36,28 +37,29 @@ export default function CreateUser() {
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
-    
+
     // Validate username
     if (!formData.username) {
       newErrors.username = "Username is required";
     } else if (formData.username.length < 3) {
       newErrors.username = "Username must be at least 3 characters";
     }
-    
+
     // Validate email
     if (!formData.email) {
       newErrors.email = "Email is required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Email is invalid";
     }
-    
+
     // Validate password
-    if (!formData.password) {
+    const passwordValidation = validatePassword(formData.password);
+    if (formData.password.length < 1) {
       newErrors.password = "Password is required";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
+    } else if (!passwordValidation.isValid) {
+      newErrors.password = "Password must be at least 8 characters, contains 1 uppercase, 1 lowercase, 1 number, and 1 special character";
     }
-    
+
     // Validate confirm password
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
@@ -73,7 +75,7 @@ export default function CreateUser() {
       ...formData,
       [name]: value
     });
-    
+
     // Clear specific field error when user starts typing
     if (errors[name as keyof FormErrors]) {
       setErrors({
@@ -87,7 +89,7 @@ export default function CreateUser() {
     e.preventDefault();
 
     if (!validateForm()) return;
-    
+
     setIsSubmitting(true);
     setErrors({}); // Clear any previous errors
 
@@ -135,7 +137,7 @@ export default function CreateUser() {
           {/* Header */}
           <div className="p-6 border-b">
             <div className="flex items-center">
-              <button 
+              <button
                 onClick={() => router.push("/management")}
                 className="mr-4 p-2 rounded-full hover:bg-gray-100"
               >
@@ -155,13 +157,13 @@ export default function CreateUser() {
                 User created successfully! Redirecting...
               </div>
             )}
-            
+
             {errors.general && (
               <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-md">
                 {errors.general}
               </div>
             )}
-            
+
             <div className="mb-6">
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
                 Username
@@ -171,7 +173,7 @@ export default function CreateUser() {
                 id="username"
                 name="username"
                 value={formData.username}
-                onChange={handleChange}  
+                onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-gray-900 placeholder-gray-600 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 placeholder="Username"
                 disabled={isSubmitting}
@@ -180,7 +182,7 @@ export default function CreateUser() {
                 <p className="mt-1 text-sm text-red-600">{errors.username}</p>
               )}
             </div>
-            
+
             <div className="mb-6">
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address
@@ -199,7 +201,7 @@ export default function CreateUser() {
                 <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
-            
+
             <div className="mb-6">
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                 Password
@@ -218,7 +220,7 @@ export default function CreateUser() {
                 <p className="mt-1 text-sm text-red-600">{errors.password}</p>
               )}
             </div>
-            
+
             <div className="mb-6">
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
                 Confirm Password
@@ -237,7 +239,23 @@ export default function CreateUser() {
                 <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
               )}
             </div>
-            
+
+            {formData.password.length > 0 && (
+              <div className="mb-4 text-sm">
+                {[
+                  { label: "At least 8 characters", valid: validatePassword(formData.password).length },
+                  { label: "At least one uppercase letter", valid: validatePassword(formData.password).upper },
+                  { label: "At least one lowercase letter", valid: validatePassword(formData.password).lower },
+                  { label: "At least one number", valid: validatePassword(formData.password).number },
+                  { label: "At least one special character", valid: validatePassword(formData.password).special },
+                ].map((rule, idx) => (
+                  <p key={idx} className={rule.valid ? "text-green-600" : "text-red-600"}>
+                    • {rule.label}
+                  </p>
+                ))}
+              </div>
+            )}
+
             <div className="flex justify-end">
               <button
                 type="button"
