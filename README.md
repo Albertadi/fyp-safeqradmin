@@ -4,37 +4,10 @@ This dashboard is for administrators of SafeQR. It provides tools to manage user
 
 Features
 1) User management
-Search, filter, and view public.users (+ reference to auth.users).
-
-Create/update/suspend users (role: end_user / admin).
-
-View login status & last activity (from audit fields if present).
-
 2) QR scan management
-Paginated list of qr_scans (decoded content, status, timestamp, user).
-
-Filters: date range, status (Safe, Suspicious, Malicious), user.
-
-Drill-down: raw payload, checks (GSB, ML), and any preview logs.
-
 3) Report management
-Triage reports submitted by users.
-
-Set disposition: Pending → Actioned / Dismissed.
-
-One-click: promote to Verified Links to seed training data.
-
 4) Verified links management (training dataset)
-CRUD on verified_links (url, security_status: Safe / Malicious).
-
-On insert: Supabase Edge Function triggers Feature Extractor (Cloud Run) to populate url_features.
-
 5) Model management
-List ml_models (model_id, version, storage_path, metrics).
-
-Retrain: Post to Cloud Run retraining service with { model_id }.
-
-Publish: mark a specific row as active=true (or update a current_model flag), notify clients to update cached model.
 
 ```bash
 npm run dev
