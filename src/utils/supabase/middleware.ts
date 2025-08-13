@@ -1,11 +1,34 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
-import { AuthApiError } from "@supabase/supabase-js" // Import AuthApiError
+import { AuthApiError } from "@supabase/supabase-js"
+
+const LOGIN_PATH = "/" // change to "/login" if that's your actual login page
+const PUBLIC_PATHS = ["/", "/login", "/auth/confirm", "/resetpassword"]
+
+function isPublicPath(pathname: string) {
+  // exact match for "/" to avoid prefix catch-all
+  if (pathname === "/") return true
+  return PUBLIC_PATHS.some((p) => p !== "/" && pathname.startsWith(p))
+}
+
+function redirectIfNotAlreadyHere(request: NextRequest, toPath: string) {
+  if (request.nextUrl.pathname === toPath) return null
+  const url = request.nextUrl.clone()
+  url.pathname = toPath
+  return NextResponse.redirect(url)
+}
+
+function deleteSupabaseCookies(req: NextRequest, res: NextResponse) {
+  // Remove any cookie that starts with "sb-" (Supabase sets project-scoped cookie names)
+  for (const c of req.cookies.getAll()) {
+    if (c.name.startsWith("sb-")) {
+      res.cookies.delete(c.name)
+    }
+  }
+}
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,71 +40,49 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
+          supabaseResponse = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) => {
+            supabaseResponse.cookies.set(name, value, options)
           })
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
         },
       },
     },
   )
 
   let user = null
-  let authError = null
+  let authError: unknown = null
 
   try {
     const { data, error } = await supabase.auth.getUser()
     user = data.user
-    authError = error // Capture the error if any
-  } catch (e: any) {
-    // Catch any unexpected errors during getUser() call
-    console.error("Middleware: Unexpected error during getUser():", e)
-    authError = e // Treat as an auth error for redirection purposes
+    authError = error ?? null
+  } catch (e) {
+    // Unexpected failures from getUser()
+    authError = e
   }
 
-  // Handle specific Supabase Auth errors like expired refresh tokens
+  // Handle explicit Supabase auth API errors (expired/invalid sessions)
   if (authError instanceof AuthApiError) {
-    // Check for common session-related errors [^1]
-    if (
-      authError.code === "refresh_token_not_found" ||
-      authError.code === "session_expired" ||
-      authError.code === "jwt_expired"
-    ) {
-      console.warn("Middleware: Session invalid, redirecting to login.", authError.code)
+    const code = authError.code
+    if (code === "refresh_token_not_found" || code === "session_expired" || code === "jwt_expired") {
+      // Best-effort sign out; do not await to avoid delaying the redirect
+      supabase.auth.signOut().catch((e) => console.error("Middleware signOut error:", e))
 
-      // Initiate signOut but don't await it, to prioritize immediate redirect.
-      // This helps prevent multiple concurrent requests from hitting Supabase
-      // with invalid tokens and potentially triggering rate limits.
-      supabase.auth.signOut().catch((e) => console.error("Middleware: Error during signOut:", e))
+      // Clear SB cookies on the response
+      deleteSupabaseCookies(request, supabaseResponse)
 
-      // Ensure the response also clears cookies
-      supabaseResponse.cookies.delete("sb-access-token")
-      supabaseResponse.cookies.delete("sb-refresh-token")
-
-      const url = request.nextUrl.clone()
-      url.pathname = "/" // Redirect to home page (login)
-      return NextResponse.redirect(url)
+      const redirect = redirectIfNotAlreadyHere(request, LOGIN_PATH)
+      if (redirect) return redirect
+      // Already on login/home; let the request continue to render the page
+      return supabaseResponse
     }
   }
 
-  // Define paths that are publicly accessible without authentication
-  const publicPaths = ["/", "/login", "/auth/confirm", "/resetpassword"]
-
-  // Check if the current path is one of the public paths
-  const isPublicPath = publicPaths.some((path) => {
-    // For the root path, ensure exact match to avoid matching all paths starting with '/'
-    if (path === "/") {
-      return request.nextUrl.pathname === "/"
-    }
-    // For other paths, check if the pathname starts with the public path
-    return request.nextUrl.pathname.startsWith(path)
-  })
-
-  // If there's no user AND the current path is NOT a public path, then redirect to home
-  if (!user && !isPublicPath) {
-    const url = request.nextUrl.clone()
-    url.pathname = "/" // Redirect to home page
-    return NextResponse.redirect(url)
+  // If there is no user AND the current path is NOT public, send to login/home.
+  if (!user && !isPublicPath(request.nextUrl.pathname)) {
+    const redirect = redirectIfNotAlreadyHere(request, LOGIN_PATH)
+    if (redirect) return redirect
+    return supabaseResponse
   }
 
   return supabaseResponse

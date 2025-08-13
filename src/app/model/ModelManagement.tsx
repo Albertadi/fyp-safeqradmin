@@ -107,7 +107,6 @@ export default function ModelManagement() {
       setTimeout(() => setSuccessMessage(null), 4000);
       await loadModels();
     } catch (err) {
-      console.log(err)
       setDeleteError('Failed to delete the model. Please try again.');
     } finally {
       setIsDeleting(false);
