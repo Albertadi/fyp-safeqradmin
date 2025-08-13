@@ -32,6 +32,10 @@ export default function Sidebar() {
     { label: 'Model Management', icon: Brain, href: '/model' },
   ];
 
+   if (pathname === "/resetpassword") {
+    return null
+  }
+
   return (
     <div className={`h-screen bg-blue-800 text-white transition-all duration-300 sticky top-0 z-40 ${collapsed ? 'w-16' : 'w-64'}`}>
 
