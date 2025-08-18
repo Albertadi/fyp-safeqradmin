@@ -1,6 +1,7 @@
 ## SafeQR | Admin Dashboard
 
 This dashboard is for administrators of SafeQR. It provides tools to manage users, review QR scans & reports, curate the verified links dataset used for training, and control ML model retraining/publishing.
+This dashboard is hosted live on: https://fyp-safeqradmin.vercel.app/
 
 Features
 1) User management
